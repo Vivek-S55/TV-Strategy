@@ -1965,7 +1965,11 @@ function evaluateTradeEntries(ctx) {
       const prevOpp = side === "PE" ? prevCE : prevPE;
       const file = fileForSide(side);
 
-      if (curBar && (curBar.longSignal === 1 || curBar.emaBuyHM === 1)) {
+      // Cannot re-enter on the exact same candle bar that just exited on the same side
+      if (state.justExitedTime === t && state.justExitedSide === side) continue;
+
+      const isFreshHM = curBar && curBar.emaBuyHM === 1 && (!prevBar || !prevBar.emaBuyHM);
+      if (curBar && (curBar.longSignal === 1 || isFreshHM)) {
         let confirmed = false;
         let confirmReason = "";
 
@@ -2448,6 +2452,7 @@ function processConfluenceBar(ctx) {
       state.executedTrades.push(exitRes.tradeRecord);
       state.justExitedReason = exitRes.exitReason;
       state.justExitedSide = exitRes.exitSide;
+      state.justExitedTime = t;
       state.activeTrade = null;
 
       if (opts.enableSellZoneBreakout && exitRes.exitReason && exitRes.exitReason.includes("Sell Zone Rejection") && curBar) {

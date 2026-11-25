@@ -100,16 +100,18 @@ npm start
 
 ---
 
-## 📈 Performance Summary (20-Day Confluence Backtest)
+## 📈 Performance Summary (21-Day Confluence Backtest: Oct 26 – Nov 25)
 
-* **Win Rate:** 56.9% (66 Wins / 50 Losses)
-* **Net P&L:** +₹104,571.25 (75 qty / 1 lot)
-* **Profit Factor:** 2.94
-* **Average Win / Loss:** 2.22x
-* **Milestone Conversion:** 41.4% of trades achieved +25 pts runner target.
+* **Total Trades:** 126 (70 Wins / 56 Losses)
+* **Win Rate:** 55.6%
+* **Net P&L:** +₹116,070.00 (75 qty / 1 lot)
+* **Profit Factor:** 2.92
+* **Average Win / Loss:** 2.34x
+* **November 25 Session:** 10 Trades (4 Wins / 6 Losses) • Net P&L: +₹11,498.75 • Profit Factor: 2.77
 
 ---
 
 ## 📄 License
 
 ISC License. Built for algorithmic trading with TradingView webhooks.
+

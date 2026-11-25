@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backtest — Vivek's Trading Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080e1a;
+      --surface:   #0f1628;
+      --surface2:  #162035;
+      --border:    #1e2d4a;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --amber:     #f59e0b;
+      --blue:      #3b82f6;
+      --purple:    #a855f7;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --mono:      #94a3b8;
+      --font:      'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .nav-brand { font-weight: 700; font-size: 15px; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+    .nav-sep { color: var(--border); font-size: 20px; }
+    .nav-title { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .nav-back { margin-left: auto; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 14px; font-size: 12px; font-family: var(--font); cursor: pointer; transition: .15s; text-decoration: none; display: flex; align-items: center; gap: 6px; }
+    .nav-back:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* LAYOUT */
+    .container { max-width: 1300px; margin: 0 auto; padding: 24px; }
+    .grid-main { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+
+    /* CARD */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .card-body { padding: 18px; }
+
+    /* UPLOAD ZONE */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: .2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--blue); background: rgba(59,130,246,.05); }
+    .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+    .upload-icon { font-size: 32px; margin-bottom: 10px; }
+    .upload-label { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .upload-label strong { color: var(--blue); }
+    .upload-filename { margin-top: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--green); display: none; }
+
+    /* SETTINGS */
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(30,45,74,.5); }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 12px; color: var(--muted); }
+    .setting-label strong { display: block; color: var(--text); font-size: 13px; font-weight: 500; }
+
+    /* TOGGLE */
+    .toggle { position: relative; width: 38px; height: 20px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px; transition: .2s; cursor: pointer; }
+    .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .2s; }
+    .toggle input:checked + .toggle-slider { background: var(--blue); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    /* NUMBER INPUT */
+    .num-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 12px; border-radius: 6px; padding: 4px 8px; width: 80px; text-align: right; }
+    .num-input:focus { outline: none; border-color: var(--blue); }
+
+    /* RUN BUTTON */
+    .btn-run {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: .2s;
+      margin-top: 16px;
+    }
+    .btn-run:hover { background: linear-gradient(135deg, #3b82f6, #2563eb); transform: translateY(-1px); }
+    .btn-run:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-run.loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; margin-left: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* SUMMARY CARDS */
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .stat-val { font-size: 22px; font-weight: 700; font-family: var(--font-mono); }
+    .stat-val.green { color: var(--green); }
+    .stat-val.red   { color: var(--red); }
+    .stat-val.blue  { color: var(--blue); }
+    .stat-val.amber { color: var(--amber); }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* EQUITY CHART */
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+    .chart-wrap canvas { width: 100% !important; }
+    .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+
+    /* TRADES TABLE */
+    .trades-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .trades-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .trades-scroll { overflow-x: auto; max-height: 380px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { padding: 10px 14px; text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+    td { padding: 9px 14px; border-bottom: 1px solid rgba(30,45,74,.4); font-family: var(--font-mono); font-size: 12px; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; font-family: var(--font); }
+    .badge.buy  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .badge.sell { background: rgba(239,68,68,.15);  color: var(--red); }
+    .badge.win  { background: rgba(34,197,94,.1);   color: var(--green); }
+    .badge.loss { background: rgba(239,68,68,.1);   color: var(--red); }
+
+    /* EMPTY / ERROR STATES */
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--muted); text-align: center; gap: 12px; }
+    .empty-icon { font-size: 48px; }
+    .empty-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .empty-sub { font-size: 13px; max-width: 360px; line-height: 1.6; }
+    .error-box { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 10px; padding: 14px 18px; color: var(--red); font-size: 13px; margin-top: 12px; display: none; }
+
+    /* INSTRUCTIONS */
+    .instructions { background: rgba(59,130,246,.05); border: 1px solid rgba(59,130,246,.2); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+    .instructions p { font-size: 12px; color: var(--muted); line-height: 1.7; }
+    .instructions strong { color: var(--blue); }
+    .instructions ol { padding-left: 18px; margin-top: 6px; }
+    .instructions li { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+
+    /* STEP TAG */
+    .step-tag { display: inline-block; background: var(--blue); color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+
+    /* PLACEHOLDER RESULTS */
+    #resultsPanel { display: none; }
+    #placeholderPanel { display: flex; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-brand">⚡ Vivek's Dashboard</a>
+  <span class="nav-sep">›</span>
+  <span class="nav-title">Backtest Engine</span>
+  <a href="/" class="nav-back">← Live Dashboard</a>
+</nav>
+
+<div class="container">
+  <div class="grid-main">
+
+    <!-- LEFT: CONFIG PANEL -->
+    <div>
+
+      <!-- Instructions -->
+      <div class="instructions">
+        <p><strong>How to export NIFTY 3-min CSV from TradingView:</strong></p>
+        <ol>
+          <li>Open NIFTY 3-min chart in TradingView</li>
+          <li>Right-click on the chart → <strong>"Download Chart Data"</strong></li>
+          <li>Select date range (last 1 week)</li>
+          <li>Save the .csv file and upload it below</li>
+        </ol>
+      </div>
+
+      <!-- CSV Upload -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <span>📂</span>
+          <span class="card-title">Upload OHLCV CSV</span>
+        </div>
+        <div class="card-body">
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="csvFile" accept=".csv,.txt" />
+            <div class="upload-icon">📊</div>
+            <div class="upload-label">
+              <strong>Click to upload</strong> or drag & drop<br/>
+              TradingView 3-min OHLCV CSV
+            </div>
+            <div class="upload-filename" id="uploadFilename"></div>
+          </div>
+          <div class="error-box" id="errorBox"></div>
+        </div>
+      </div>
+
+      <!-- Strategy Settings -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <span>⚙️</span>
+          <span class="card-title">Signal Settings</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:11px;color:var(--blue);margin-bottom:12px;padding:8px;background:rgba(59,130,246,.07);border-radius:6px;">
+            ✅ TradingView CSV detected — using <strong>exact indicator signals</strong> including HM Confirmed, Long/Short, CPR levels
+          </p>
+          <div class="setting-row">
+            <div class="setting-label"><strong>EMA + HM Confirmed</strong><span style="color:var(--green);font-size:10px;">● EXACT from TradingView</span></div>
+            <label class="toggle"><input type="checkbox" id="useEMAHM" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Long / Short Signal</strong><span style="color:var(--green);font-size:10px;">● EXACT from TradingView</span></div>
+            <label class="toggle"><input type="checkbox" id="useLongShort" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Triple Alignment</strong><span style="color:var(--amber);font-size:10px;">● Computed from CSV columns</span></div>
+            <label class="toggle"><input type="checkbox" id="useTripleAlign" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Zone Momentum</strong><span style="color:var(--amber);font-size:10px;">● Computed from EMA band</span></div>
+            <label class="toggle"><input type="checkbox" id="useZoneMomentum" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Use Stop Loss</strong>Long Stop / Short Stop from CSV</div>
+            <label class="toggle"><input type="checkbox" id="useStopLoss" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Exit on EMA Flip</strong>Exit when opposite HM signal fires</div>
+            <label class="toggle"><input type="checkbox" id="exitOnEMAFlip" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Exit on Opposite Signal</strong>Exit on reverse alignment</div>
+            <label class="toggle"><input type="checkbox" id="exitOnOpposite" checked /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>EMA Flip min pts</strong>Profit needed before EMA exit</div>
+            <input type="number" class="num-input" id="exitDistancePts" value="50" min="1" max="500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Capital Settings -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <span>💰</span>
+          <span class="card-title">Capital & Lot</span>
+        </div>
+        <div class="card-body">
+          <div class="setting-row">
+            <div class="setting-label"><strong>Initial Capital (₹)</strong></div>
+            <input type="number" class="num-input" id="initialCapital" value="100000" style="width:110px" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Lot Size</strong>NIFTY = 75 qty/lot</div>
+            <input type="number" class="num-input" id="lotSize" value="75" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Commission (₹)</strong>Per order (Zerodha ₹20)</div>
+            <input type="number" class="num-input" id="commission" value="20" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Slippage (pts)</strong>NIFTY execution slippage</div>
+            <input type="number" class="num-input" id="slippage" value="2" />
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-run" id="btnRun" onclick="runBacktest()">▶ Run Backtest</button>
+    </div>
+
+    <!-- RIGHT: RESULTS -->
+    <div>
+
+      <!-- PLACEHOLDER -->
+      <div id="placeholderPanel" class="empty-state">
+        <div class="empty-icon">📈</div>
+        <div class="empty-title">No Backtest Run Yet</div>
+        <div class="empty-sub">Upload a TradingView OHLCV CSV file and click "Run Backtest" to see your strategy's historical performance.</div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="resultsPanel">
+
+        <!-- Summary Stats -->
+        <div class="summary-grid" id="summaryGrid">
+          <div class="stat-card">
+            <div class="stat-label">Net P&L</div>
+            <div class="stat-val" id="statPnl">—</div>
+            <div class="stat-sub" id="statReturn">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-val blue" id="statWinRate">—</div>
+            <div class="stat-sub" id="statWinLoss">— W / — L</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Profit Factor</div>
+            <div class="stat-val" id="statPF">—</div>
+            <div class="stat-sub" id="statTrades">— trades</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Max Drawdown</div>
+            <div class="stat-val red" id="statDD">—</div>
+            <div class="stat-sub" id="statDays">— days</div>
+          </div>
+        </div>
+
+        <div class="summary-grid" style="grid-template-columns: repeat(4,1fr);">
+          <div class="stat-card">
+            <div class="stat-label">Avg Win</div>
+            <div class="stat-val green" id="statAvgWin">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Loss</div>
+            <div class="stat-val red" id="statAvgLoss">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Bars Analysed</div>
+            <div class="stat-val blue" id="statBars">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Final Equity</div>
+            <div class="stat-val" id="statEquity">—</div>
+          </div>
+        </div>
+
+        <!-- Signal Breakdown -->
+        <div class="chart-wrap" id="breakdownSection" style="display:none;margin-bottom:20px;">
+          <div class="chart-title">📊 Performance by Signal Type</div>
+          <div id="signalBreakdown"></div>
+        </div>
+
+        <!-- Equity Curve -->
+        <div class="chart-wrap">
+          <div class="chart-title">📈 Equity Curve</div>
+          <canvas id="equityChart" height="180"></canvas>
+        </div>
+
+        <!-- Trade List -->
+        <div class="trades-wrap">
+          <div class="trades-header">
+            <span class="card-title">📋 Trade Log</span>
+            <span id="tradeCount" style="font-size:12px;color:var(--muted);">0 trades</span>
+          </div>
+          <div class="trades-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Entry Date</th>
+                  <th>Dir</th>
+                  <th>Entry ₹</th>
+                  <th>Exit ₹</th>
+                  <th>Pts</th>
+                  <th>P&L ₹</th>
+                  <th>Result</th>
+                  <th>Exit Reason</th>
+                </tr>
+              </thead>
+              <tbody id="tradesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /resultsPanel -->
+    </div>
+
+  </div><!-- /grid-main -->
+</div><!-- /container -->
+
+<script>
+let csvFile = null;
+
+// ── FILE UPLOAD ──────────────────────────────────────────────
+const fileInput = document.getElementById('csvFile');
+const uploadZone = document.getElementById('uploadZone');
+const uploadFilename = document.getElementById('uploadFilename');
+
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) handleFile(f);
+});
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function handleFile(f) {
+  csvFile = f;
+  uploadFilename.textContent = '✅ ' + f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB)';
+  uploadFilename.style.display = 'block';
+  hideError();
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = '❌ ' + msg;
+  box.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+// ── RUN BACKTEST ─────────────────────────────────────────────
+async function runBacktest() {
+  if (!csvFile) { showError('Please upload a CSV file first.'); return; }
+
+  hideError();
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'Running Backtest...';
+
+  const form = new FormData();
+  form.append('csv', csvFile);
+  form.append('useEMAHM',        document.getElementById('useEMAHM').checked);
+  form.append('useLongShort',    document.getElementById('useLongShort').checked);
+  form.append('useTripleAlign',  document.getElementById('useTripleAlign').checked);
+  form.append('useZoneMomentum', document.getElementById('useZoneMomentum').checked);
+  form.append('useStopLoss',     document.getElementById('useStopLoss').checked);
+  form.append('exitOnEMAFlip',   document.getElementById('exitOnEMAFlip').checked);
+  form.append('exitOnOpposite',  document.getElementById('exitOnOpposite').checked);
+  form.append('exitDistancePts', document.getElementById('exitDistancePts').value);
+  form.append('initialCapital',  document.getElementById('initialCapital').value);
+  form.append('lotSize',         document.getElementById('lotSize').value);
+  form.append('commission',      document.getElementById('commission').value);
+  form.append('slippage',        document.getElementById('slippage').value);
+
+  try {
+    const resp = await fetch('/api/backtest/upload', { method: 'POST', body: form });
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      showError(data.error || 'Backtest failed');
+      return;
+    }
+
+    renderResults(data);
+  } catch (e) {
+    showError('Server error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = '▶ Run Backtest';
+  }
+}
+
+// ── RENDER RESULTS ────────────────────────────────────────────
+function renderResults(data) {
+  document.getElementById('placeholderPanel').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+
+  const s = data.summary;
+  const pnlEl = document.getElementById('statPnl');
+  pnlEl.textContent = (s.totalPnL >= 0 ? '+' : '') + '₹' + s.totalPnL.toLocaleString('en-IN');
+  pnlEl.className = 'stat-val ' + (s.totalPnL >= 0 ? 'green' : 'red');
+  document.getElementById('statReturn').textContent = (s.returnPct >= 0 ? '+' : '') + s.returnPct + '% return';
+
+  document.getElementById('statWinRate').textContent = s.winRate + '%';
+  document.getElementById('statWinLoss').textContent = `${s.wins} W / ${s.losses} L`;
+  document.getElementById('statTrades').textContent = s.totalTrades + ' trades';
+
+  const pfEl = document.getElementById('statPF');
+  pfEl.textContent = s.profitFactor !== null ? s.profitFactor : '—';
+  pfEl.className = 'stat-val ' + (s.profitFactor !== null && s.profitFactor >= 1 ? 'green' : 'red');
+
+  document.getElementById('statDD').textContent = '₹' + s.maxDrawdown.toLocaleString('en-IN');
+  document.getElementById('statDays').textContent = s.daysAnalysed + ' days | ' + (s.dataSource.includes('TradingView') ? '✅ TV Signals' : '⚠️ Computed');
+  document.getElementById('statAvgWin').textContent = '₹' + s.avgWin.toLocaleString('en-IN');
+  document.getElementById('statAvgLoss').textContent = '₹' + s.avgLoss.toLocaleString('en-IN');
+  document.getElementById('statBars').textContent = s.barsAnalysed.toLocaleString('en-IN');
+
+  const eqEl = document.getElementById('statEquity');
+  eqEl.textContent = '₹' + s.finalEquity.toLocaleString('en-IN');
+  eqEl.className = 'stat-val ' + (s.finalEquity >= parseInt(document.getElementById('initialCapital').value) ? 'green' : 'red');
+
+  // Signal breakdown
+  const bdEl = document.getElementById('signalBreakdown');
+  if (s.signalBreakdown && Object.keys(s.signalBreakdown).length > 0) {
+    bdEl.innerHTML = Object.entries(s.signalBreakdown).map(([reason, stats]) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(30,45,74,.4);">
+        <span style="font-size:12px;color:var(--text)">${reason}</span>
+        <span style="font-size:12px;font-family:var(--font-mono);">
+          <span style="color:var(--muted)">${stats.total} trades</span> &nbsp;
+          <span style="color:${stats.wins/stats.total >= 0.5 ? 'var(--green)' : 'var(--red)'}">${Math.round(stats.wins/stats.total*100)}% WR</span> &nbsp;
+          <span style="color:${stats.pnl >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600">${stats.pnl >= 0 ? '+' : ''}₹${Math.round(stats.pnl).toLocaleString('en-IN')}</span>
+        </span>
+      </div>
+    `).join('');
+    document.getElementById('breakdownSection').style.display = 'block';
+  }
+
+  drawEquityCurve(data.equityCurve);
+  renderTrades(data.trades);
+}
+
+// ── EQUITY CURVE ──────────────────────────────────────────────
+let chartInstance = null;
+function drawEquityCurve(curve) {
+  if (chartInstance) chartInstance = null;
+  const canvas = document.getElementById('equityChart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth;
+  const H = 200;
+  canvas.width = W;
+  canvas.height = H;
+
+  if (!curve || curve.length < 2) return;
+
+  // Downsample for performance
+  const step = Math.max(1, Math.floor(curve.length / 600));
+  const pts = curve.filter((_, i) => i % step === 0);
+  const equities = pts.map(p => p.equity);
+  const initialCap = parseInt(document.getElementById('initialCapital').value);
+
+  const minE = Math.min(...equities, initialCap);
+  const maxE = Math.max(...equities, initialCap);
+  const range = maxE - minE || 1;
+  const pad = { t: 16, b: 24, l: 70, r: 16 };
+
+  ctx.clearRect(0, 0, W, H);
+
+  const xOf = i => pad.l + (i / (pts.length - 1)) * (W - pad.l - pad.r);
+  const yOf = v => pad.t + (1 - (v - minE) / range) * (H - pad.t - pad.b);
+
+  // Baseline
+  const baseY = yOf(initialCap);
+  ctx.strokeStyle = 'rgba(100,116,139,.3)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.l, baseY); ctx.lineTo(W - pad.r, baseY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+  grad.addColorStop(0, 'rgba(59,130,246,.25)');
+  grad.addColorStop(1, 'rgba(59,130,246,.02)');
+
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(equities[0]));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(xOf(i), yOf(equities[i]));
+  ctx.lineTo(xOf(pts.length - 1), H - pad.b);
+  ctx.lineTo(xOf(0), H - pad.b);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(equities[0]));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(xOf(i), yOf(equities[i]));
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Y axis labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'right';
+  [minE, (minE + maxE) / 2, maxE].forEach(v => {
+    const y = yOf(v);
+    ctx.fillText('₹' + Math.round(v).toLocaleString('en-IN'), pad.l - 4, y + 3);
+  });
+}
+
+// ── TRADES TABLE ──────────────────────────────────────────────
+function renderTrades(trades) {
+  const tbody = document.getElementById('tradesBody');
+  document.getElementById('tradeCount').textContent = trades.length + ' trades';
+  tbody.innerHTML = trades.map(t => `
+    <tr>
+      <td style="color:var(--muted)">${t.id}</td>
+      <td>${t.entryDate}</td>
+      <td><span class="badge ${t.dir === 'BUY' ? 'buy' : 'sell'}">${t.dir === 'BUY' ? '🟢 BUY CE' : '🔴 SELL PE'}</span></td>
+      <td>${t.entry.toFixed(2)}</td>
+      <td>${t.exit.toFixed(2)}</td>
+      <td style="color:${t.pts >= 0 ? 'var(--green)' : 'var(--red)'}">${t.pts >= 0 ? '+' : ''}${t.pts}</td>
+      <td style="color:${t.pnl >= 0 ? 'var(--green)' : 'var(--red)'}; font-weight:600">${t.pnl >= 0 ? '+' : ''}₹${t.pnl.toLocaleString('en-IN')}</td>
+      <td><span class="badge ${t.result === 'WIN' ? 'win' : 'loss'}">${t.result}</span></td>
+      <td style="color:var(--muted); font-family:var(--font); font-size:11px">${t.exitReason}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:24px">No trades generated</td></tr>';
+}
+</script>
+</body>
+</html>

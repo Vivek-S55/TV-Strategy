@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vivek's Live Trading Dashboard — Waterfall Confluence Engine</title>
+  <meta name="description" content="Live 3-Chart Synchronized Waterfall Confluence Trading Dashboard for NIFTY & Options" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  TOP BAR                                           -->
+<!-- ═══════════════════════════════════════════════════ -->
+<header class="topbar" id="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">Vivek's Dashboard</span>
+      <span class="badge-status-live" style="margin-left: 6px;">LIVE WATERFALL</span>
+    </div>
+    <div class="market-status" id="marketStatus">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusLabel">Connecting...</span>
+    </div>
+  </div>
+
+  <div class="topbar-center">
+    <div class="clock-wrap">
+      <span class="clock-time" id="clockTime">—</span>
+      <span class="clock-label">IST</span>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="ws-status" id="wsStatus">
+      <span class="ws-dot" id="wsDot"></span>
+      <span id="wsLabel">Disconnected</span>
+    </div>
+    <a href="waterfall-backtest.html" class="btn-outline" style="text-decoration:none; display:flex; align-items:center; gap:4px; color:#60a5fa; border-color:#3b82f6;" title="Waterfall Backtest Engine">🌊 Waterfall BT</a>
+    <a href="options-backtest.html" class="btn-outline" style="text-decoration:none; display:flex; align-items:center; gap:4px;" title="Options Backtest Engine">📊 Options BT</a>
+    <button class="btn-outline" id="btnResetLiveSession" title="Reset Today's Waterfall Session">🔄 Reset Session</button>
+    <button class="btn-outline" id="btnTelegramSettings" style="color:#38bdf8; border-color:rgba(56,189,248,0.4);" title="Configure Telegram mobile push notifications">📱 Telegram</button>
+    <button class="btn-outline" id="btnMockSignal" title="Test a simulated 3-chart synchronized candle">🧪 Test 3-Chart Bar</button>
+    <button class="btn-outline danger" id="btnClearSignals" title="Clear alerts">🗑 Clear</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  ENGINE FILTER PANEL (Read-Only — mirrors waterfall-backtest.html)  -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="strat-banner" id="engineFilterPanel">
+  <div class="strat-info">
+    <span class="strat-pill" style="background: linear-gradient(135deg, #0284c7, #2563eb);">CONFLUENCE ENGINE FOCUS</span>
+    <div>
+      <div class="strat-title">Live 3-Chart Lockstep Confluence Engine (Nifty Spot + CE + PE)</div>
+      <div class="strat-desc">Engine config is read-only. All parameters are locked to the live confluence ruleset — changes require backend config.</div>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <div class="ctrl-item" title="Strike Selection Strategy">
+      <span class="ctrl-label">Strikes:</span>
+      <select class="ctrl-input" disabled style="width: auto; padding: 2px 6px; font-family: var(--font); cursor: not-allowed; opacity:0.75;">
+        <option selected>Option A: 1 Strike / Side (±200 OTM)</option>
+      </select>
+    </div>
+    <div class="ctrl-item" title="Entry Signal Mode">
+      <span class="ctrl-label">Entry Signal:</span>
+      <select class="ctrl-input" disabled style="width: auto; padding: 2px 6px; font-family: var(--font); cursor: not-allowed; opacity:0.75; color:#a78bfa; font-weight:600;">
+        <option selected>All Signals (9 EMA + RMI + CE Bounce)</option>
+      </select>
+    </div>
+    <div class="ctrl-item" title="HM Bullish State required for 9 EMA Long Entry">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:var(--blue);" />
+        <span class="ctrl-label" style="color:var(--text);">HM Bullish (PVR)</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="Exit trade when HM turns Bearish">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" disabled style="cursor:not-allowed; accent-color:var(--red);" />
+        <span class="ctrl-label" style="color:var(--text);">HM Bearish Exit</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="Near-CE Low Trail">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#a855f7;" />
+        <span class="ctrl-label" style="color:var(--text);">Near-CE Low Trail</span>
+      </label>
+      <input type="number" class="ctrl-input" value="5" disabled style="width:36px; text-align:center; opacity:0.75;" />
+      <span style="font-size:10px; color:var(--text-muted);">pts</span>
+    </div>
+    <div class="ctrl-item" title="Filter Sell Zone">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#f59e0b;" />
+        <span class="ctrl-label" style="color:var(--text);">Filter Sell Zone</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="Breakout Re-entry">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#f59e0b;" />
+        <span class="ctrl-label" style="color:var(--text);">Breakout Re-entry</span>
+      </label>
+      <input type="number" class="ctrl-input" value="15" disabled style="width:36px; text-align:center; opacity:0.75;" />
+      <span style="font-size:10px; color:var(--text-muted);">bars</span>
+    </div>
+    <div class="ctrl-item" title="Breakout SL">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#ef4444;" />
+        <span class="ctrl-label" style="color:var(--text);">Breakout SL</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="Filter Buy Zone">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#10b981;" />
+        <span class="ctrl-label" style="color:var(--text);">Filter Buy Zone</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="HM Confirmed Exit">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#06b6d4;" />
+        <span class="ctrl-label" style="color:var(--text);">HM Confirmed Exit</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="CE Rejection Exit">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#ec4899;" />
+        <span class="ctrl-label" style="color:var(--text);">CE Rejection Exit</span>
+      </label>
+      <input type="number" class="ctrl-input" value="0" disabled style="width:36px; text-align:center; opacity:0.75;" />
+      <span style="font-size:10px; color:var(--text-muted);">pts</span>
+    </div>
+    <div class="ctrl-item" title="RMI Bounce Entry">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#8b5cf6;" />
+        <span class="ctrl-label" style="color:var(--text);">RMI Bounce Entry</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="CE Bounce Entry">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#06b6d4;" />
+        <span class="ctrl-label" style="color:var(--text);">CE Bounce Entry</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="CE Floor SL">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#f43f5e;" />
+        <span class="ctrl-label" style="color:var(--text);">CE Floor SL</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="RMI Floor SL">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#f43f5e;" />
+        <span class="ctrl-label" style="color:var(--text);">RMI Floor SL</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="RMI Rejection Exit (15.5)">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed; opacity:0.75;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#a855f7;" />
+        <span class="ctrl-label" style="color:var(--text);">RMI Rejection Exit (15.5)</span>
+      </label>
+    </div>
+    <div class="ctrl-item" title="Target points">
+      <span class="ctrl-label">Target:</span>
+      <input type="number" class="ctrl-input" value="15" disabled style="width:45px; text-align:center; opacity:0.75;" />
+      <span style="font-size:10px; color:var(--text-muted);">pts</span>
+    </div>
+    <div class="ctrl-item" title="Trading hours">
+      <span class="ctrl-label">Hours:</span>
+      <input type="text" class="ctrl-input" value="09:21" disabled style="width:48px; text-align:center; opacity:0.75;" />
+      <span style="font-size:11px; color:var(--text-muted);">-</span>
+      <input type="text" class="ctrl-input" value="14:45" disabled style="width:48px; text-align:center; opacity:0.75;" />
+    </div>
+    <div class="ctrl-item">
+      <span class="ctrl-label">Lot:</span>
+      <input type="number" class="ctrl-input" value="75" disabled style="width:55px; opacity:0.75;" />
+    </div>
+    <div class="ctrl-item">
+      <span class="ctrl-label">Brok:</span>
+      <span style="font-size: 11px; color: var(--text-muted);">₹</span>
+      <input type="number" class="ctrl-input" value="20" disabled style="width:48px; opacity:0.75;" />
+    </div>
+    <div class="ctrl-item">
+      <span class="ctrl-label">Slip:</span>
+      <input type="number" class="ctrl-input" value="0" disabled style="width:45px; opacity:0.75;" />
+    </div>
+    <span style="font-size:11px; color:var(--text-muted); margin-left:4px;">🔒 Read-only</span>
+  </div>
+
+  <!-- 2nd row: Confluence Engine toggles -->
+  <div class="controls-bar" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(45, 69, 107, 0.4); width: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <div style="display:flex; align-items:center; gap:6px;">
+      <span style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 12px; letter-spacing: 0.05em;">30 SEP CONFLUENCE</span>
+    </div>
+    <div class="ctrl-item" style="opacity:0.75;">
+      <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed;">
+        <input type="checkbox" checked disabled style="cursor:not-allowed; accent-color:#38bdf8;" />
+        <span class="ctrl-label" style="cursor:not-allowed; color:var(--text); font-weight:700;">Confluence Engine</span>
+      </label>
+    </div>
+    <div class="ctrl-item" style="opacity:0.75;">
+      <span class="ctrl-label">Max Zone:</span>
+      <input type="number" class="ctrl-input" value="10" disabled style="width:40px; text-align:center;" />
+      <span style="font-size:10px; color:var(--text-muted);">pts</span>
+    </div>
+    <div class="ctrl-item" style="opacity:0.75;">
+      <span class="ctrl-label">Retrace:</span>
+      <input type="number" class="ctrl-input" value="50" disabled style="width:40px; text-align:center;" />
+      <span style="font-size:10px; color:var(--text-muted);">%</span>
+    </div>
+    <div class="ctrl-item" style="opacity:0.75;">
+      <span class="ctrl-label">Stagnation:</span>
+      <input type="number" class="ctrl-input" value="10" disabled style="width:36px; text-align:center;" />
+      <span style="font-size:10px; color:var(--text-muted);">bars</span>
+    </div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#a855f7;" /><span class="ctrl-label" style="color:var(--text);">CPR S/R Exits (R1, R3, S1, S3, PP)</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#f59e0b;" /><span class="ctrl-label" style="color:var(--text);">HM Vol Reversal Exit</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#10b981;" /><span class="ctrl-label" style="color:var(--text);">Filter False Noise</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#3b82f6;" /><span class="ctrl-label" style="color:var(--text);">Strict Bull Filter</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#ef4444;" /><span class="ctrl-label" style="color:var(--text);">Strict Bear Filter</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#10b981;" /><span class="ctrl-label" style="color:var(--text);">Hammer Continuation (Setup 9)</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" disabled style="accent-color:#f59e0b;" /><span class="ctrl-label" style="color:var(--text);">CE Line 2-Candle Bounce (Setup 10)</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#06b6d4;" /><span class="ctrl-label" style="color:var(--text);">Nifty 9 EMA Alignment</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#ec4899;" /><span class="ctrl-label" style="color:var(--text);">Counter-Breakout Exit</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#10b981;" /><span class="ctrl-label" style="color:var(--text);">Candle B RMI Reclaim (Setup 2c)</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#10b981;" /><span class="ctrl-label" style="color:var(--text);">RMI Support Hold (Exit Defer)</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#f59e0b;" /><span class="ctrl-label" style="color:var(--text);">Cross-Strike Inflection (Setup 11)</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#38bdf8;" /><span class="ctrl-label" style="color:var(--text);">CPR R1 Ceiling Filter</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#38bdf8;" /><span class="ctrl-label" style="color:var(--text);">Spot CPR Conflict Filter</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#ec4899;" /><span class="ctrl-label" style="color:var(--text);">Bounce Exhaustion Filter</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#10b981;" /><span class="ctrl-label" style="color:var(--text);">Opposite CPR R1 Reversal</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#f59e0b;" /><span class="ctrl-label" style="color:var(--text);">Dual Ceiling Rejection Filter</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#06b6d4;" /><span class="ctrl-label" style="color:var(--text);">Pivot 50% Retracement Queue</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#8b5cf6;" /><span class="ctrl-label" style="color:var(--text);">RMI Center Reclaim Breakout</span></label></div>
+    <div class="ctrl-item" style="opacity:0.75;"><label style="display:flex;align-items:center;gap:5px;cursor:not-allowed;"><input type="checkbox" checked disabled style="accent-color:#10b981;" /><span class="ctrl-label" style="color:var(--text);">Candle B Trend Breakout (Setup 13)</span></label></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  MAIN LIVE WATERFALL DASHBOARD CONTAINER           -->
+<!-- ═══════════════════════════════════════════════════ -->
+<main class="live-waterfall-container">
+
+  <!-- 0. REAL-TIME 3-CHART TRIANGULATION & ACTIVE TRADE COCKPIT -->
+  <div class="triangulation-cockpit" style="margin-bottom: 12px;">
+    <!-- NIFTY SPOT TILE -->
+    <div class="cockpit-tile" id="tileSpot">
+      <div class="tile-top">
+        <span class="tile-name bold" id="spotName">NIFTY 50</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="role-badge spot">SPOT</span>
+          <span class="sync-dot" id="spotSyncDot"></span>
+        </div>
+      </div>
+      <div class="tile-price-row">
+        <span class="tile-price" id="spotClosePrice">—</span>
+        <span class="tile-sub" id="spotSubTime">— IST</span>
+      </div>
+      <div class="tile-indicators">
+        <span>9 EMA: <b id="spotEMA9">—</b></span>
+        <span>PP: <b id="spotPP">—</b></span>
+        <span>200 EMA: <b id="spotEMA200">—</b></span>
+      </div>
+    </div>
+
+    <!-- CE OPTION TILE -->
+    <div class="cockpit-tile" id="tileCE">
+      <div class="tile-top">
+        <span class="tile-name bold" id="ceName">NIFTY CE</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="role-badge ce">CE LEG</span>
+          <span class="sync-dot" id="ceSyncDot"></span>
+        </div>
+      </div>
+      <div class="tile-price-row">
+        <span class="tile-price" id="ceClosePrice">—</span>
+        <span class="tile-sub" id="ceSubTime">— IST</span>
+      </div>
+      <div class="tile-indicators">
+        <span>9 EMA: <b id="ceEMA9">—</b></span>
+        <span>PP: <b id="cePP">—</b></span>
+        <span>RMI: <b id="ceRMI">—</b></span>
+        <span>Stop: <b id="ceStop">—</b></span>
+      </div>
+    </div>
+
+    <!-- PE OPTION TILE -->
+    <div class="cockpit-tile" id="tilePE">
+      <div class="tile-top">
+        <span class="tile-name bold" id="peName">NIFTY PE</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="role-badge pe">PE LEG</span>
+          <span class="sync-dot" id="peSyncDot"></span>
+        </div>
+      </div>
+      <div class="tile-price-row">
+        <span class="tile-price" id="peClosePrice">—</span>
+        <span class="tile-sub" id="peSubTime">— IST</span>
+      </div>
+      <div class="tile-indicators">
+        <span>9 EMA: <b id="peEMA9">—</b></span>
+        <span>PP: <b id="pePP">—</b></span>
+        <span>RMI: <b id="peRMI">—</b></span>
+        <span>Stop: <b id="peStop">—</b></span>
+      </div>
+    </div>
+
+    <!-- ACTIVE POSITION & RUNNER MILESTONES TILE -->
+    <div class="cockpit-tile active-trade-tile" id="tileActiveTrade" style="min-width: 280px;">
+      <div class="tile-top">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="active-pulse" id="activePulse"></span>
+          <span class="tile-name bold" id="activeTradeStatus" style="font-size:12px;">FLAT / WAITING</span>
+        </div>
+        <span class="role-badge pos" id="posBadge">POSITION</span>
+      </div>
+      <div class="tile-price-row" style="margin: 4px 0;">
+        <span class="active-pnl-val" id="activeTradePnLVal">—</span>
+        <span class="active-pnl-pts" id="activeTradePtsVal">—</span>
+      </div>
+      <div class="tile-indicators" style="font-size: 10px;">
+        <span>Entry: <b id="wfEntryPrice">—</b></span>
+        <span>SL: <b id="wfStopLoss" style="color:#ef4444;">—</b></span>
+        <span>Bars: <b id="wfBarsHeld">0</b></span>
+        <span>Setup: <b id="wfSetupName" style="color:#38bdf8;">—</b></span>
+      </div>
+      <!-- Runner Milestones Progress Bar -->
+      <div class="milestones-strip" id="activeTradeMilestones">
+        <span class="milestone-badge" id="badgeM25" title="+25 pts reached">🎯 25 Pts <span id="txtM25">⏳</span></span>
+        <span class="milestone-badge" id="badgeM30" title="+30 pts reached">🚀 30 Pts <span id="txtM30">⏳</span></span>
+        <span class="milestone-badge" id="badgeM50" title="+50 pts reached">🏆 50 Pts <span id="txtM50">⏳</span></span>
+        <button class="btn-manual-exit" id="btnActiveManualExit" style="display:none; font-size:10px; padding:2px 8px; margin-left:auto;" onclick="window.manualExitTrade()">🚪 Exit Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. ROW 1: NET PROFIT & RUNNER MILESTONE PROFITS (4 Boxes) -->
+  <div class="kpi-grid kpi-row-1">
+    <!-- NET PNL -->
+    <div class="kpi-card highlight-green" id="cardNetPnL">
+      <div class="kpi-label">
+        <span>Net P&L (₹)</span>
+        <span style="font-size:14px;">💰</span>
+      </div>
+      <div class="kpi-value c-green" id="valNetPnL">₹0.00</div>
+      <div class="kpi-sub">
+        <span>Gross: <strong id="valGrossPnL">₹0.00</strong></span>
+        <span>•</span>
+        <span>Brokerage: <strong id="valBrokerage">₹0.00</strong></span>
+      </div>
+    </div>
+
+    <!-- 25 PTS REACHED -->
+    <div class="kpi-card" id="card25Pts" style="border-top: 3px solid #38bdf8; background: linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, var(--surface) 100%);">
+      <div class="kpi-label">
+        <span>25 Pts Milestone Profit</span>
+        <span style="font-size:14px;">🎯</span>
+      </div>
+      <div class="kpi-value" style="color: #38bdf8;" id="val25PtsProfit">+₹0.00</div>
+      <div class="kpi-sub">
+        <span><strong id="val25PtsCount" style="color:var(--text);">0 Trades</strong> (<span id="val25PtsPct">0.0%</span>)</span>
+        <span>•</span>
+        <span>+₹1,875 / lot</span>
+      </div>
+    </div>
+
+    <!-- 30 PTS REACHED -->
+    <div class="kpi-card" id="card30Pts" style="border-top: 3px solid #a78bfa; background: linear-gradient(180deg, rgba(167, 139, 250, 0.08) 0%, var(--surface) 100%);">
+      <div class="kpi-label">
+        <span>30 Pts Milestone Profit</span>
+        <span style="font-size:14px;">🚀</span>
+      </div>
+      <div class="kpi-value" style="color: #a78bfa;" id="val30PtsProfit">+₹0.00</div>
+      <div class="kpi-sub">
+        <span><strong id="val30PtsCount" style="color:var(--text);">0 Trades</strong> (<span id="val30PtsPct">0.0%</span>)</span>
+        <span>•</span>
+        <span>+₹2,250 / lot</span>
+      </div>
+    </div>
+
+    <!-- 50 PTS REACHED -->
+    <div class="kpi-card" id="card50Pts" style="border-top: 3px solid #4ade80; background: linear-gradient(180deg, rgba(74, 222, 128, 0.08) 0%, var(--surface) 100%);">
+      <div class="kpi-label">
+        <span>50 Pts Milestone Profit</span>
+        <span style="font-size:14px;">🏆</span>
+      </div>
+      <div class="kpi-value" style="color: #4ade80;" id="val50PtsProfit">+₹0.00</div>
+      <div class="kpi-sub">
+        <span><strong id="val50PtsCount" style="color:var(--text);">0 Trades</strong> (<span id="val50PtsPct">0.0%</span>)</span>
+        <span>•</span>
+        <span>+₹3,750 / lot</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: OVERALL STRATEGY PERFORMANCE METRICS (5 Boxes) -->
+  <div class="kpi-grid kpi-row-2">
+    <!-- WIN RATE -->
+    <div class="kpi-card" id="cardWinRate">
+      <div class="kpi-label">
+        <span>Win Rate</span>
+        <span style="font-size:14px;">🎯</span>
+      </div>
+      <div class="kpi-value" id="valWinRate">0.0%</div>
+      <div class="kpi-sub">
+        <span class="c-green" id="valWins">0 Wins</span>
+        <span>/</span>
+        <span class="c-red" id="valLosses">0 Losses</span>
+        <span>(<span id="valTotalTrades">0</span> total)</span>
+      </div>
+    </div>
+
+    <!-- PROFIT FACTOR -->
+    <div class="kpi-card" id="cardProfitFactor">
+      <div class="kpi-label">
+        <span>Profit Factor</span>
+        <span style="font-size:14px;">⚖️</span>
+      </div>
+      <div class="kpi-value c-blue" id="valProfitFactor">0.00</div>
+      <div class="kpi-sub">
+        <span>Profit: <strong class="c-green" id="valGrossProfit">₹0</strong></span>
+        <span>•</span>
+        <span>Loss: <strong class="c-red" id="valGrossLoss">₹0</strong></span>
+      </div>
+    </div>
+
+    <!-- AVG WIN / AVG LOSS -->
+    <div class="kpi-card" id="cardPayoff">
+      <div class="kpi-label">
+        <span>Avg Win / Avg Loss</span>
+        <span style="font-size:14px;">📊</span>
+      </div>
+      <div class="kpi-value c-purple" id="valPayoffRatio">0.00x</div>
+      <div class="kpi-sub">
+        <span>Avg Win: <strong class="c-green" id="valAvgWin">₹0</strong></span>
+        <span>•</span>
+        <span>Avg Loss: <strong class="c-red" id="valAvgLoss">₹0</strong></span>
+      </div>
+    </div>
+
+    <!-- MAX DRAWDOWN -->
+    <div class="kpi-card" id="cardMaxDD">
+      <div class="kpi-label">
+        <span>Max Drawdown</span>
+        <span style="font-size:14px;">📉</span>
+      </div>
+      <div class="kpi-value c-red" id="valMaxDrawdown">₹0.00</div>
+      <div class="kpi-sub">
+        <span>Peak-to-trough equity drop</span>
+      </div>
+    </div>
+
+    <!-- FILTERED / SKIPPED -->
+    <div class="kpi-card" id="cardSkipped" style="border-left: 3px solid #f59e0b;">
+      <div class="kpi-label">
+        <span>Filtered / Skipped</span>
+        <span style="font-size:14px;">🛡️</span>
+      </div>
+      <div class="kpi-value" style="color: #fbbf24;" id="valSkippedCount">0 Signals</div>
+      <div class="kpi-sub">
+        <span>Counter-trend traps avoided</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DETAILED TRADE LOG (Identical to Waterfall Dashboard Screenshot 3) -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <div class="table-card-title">
+        <span>📜 Detailed Trade Log</span>
+        <span class="table-card-badge" id="tradeLogCount">0 Records (0 Executed • 0 Skipped • 0 Monitored 3m Bars)</span>
+      </div>
+    </div>
+
+    <!-- Filter Toolbar -->
+    <div class="table-toolbar-full">
+      <div class="filter-group">
+        <span class="filter-label">Side:</span>
+        <button class="filter-btn active" data-filter="side" data-val="ALL">All</button>
+        <button class="filter-btn" data-filter="side" data-val="CE">CE Only</button>
+        <button class="filter-btn" data-filter="side" data-val="PE">PE Only</button>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Setup:</span>
+        <button class="filter-btn active" data-filter="setup" data-val="ALL">All Setups</button>
+        <button class="filter-btn" data-filter="setup" data-val="CONFLUENCE" style="color:#38bdf8; font-weight:700;">🧩 Confluence</button>
+        <button class="filter-btn" data-filter="setup" data-val="CE_BOUNCE" style="color:#06b6d4; font-weight:700;">🎯 CE Bounce</button>
+        <button class="filter-btn" data-filter="setup" data-val="RMI_BOUNCE" style="color:#a78bfa; font-weight:700;">📐 RMI Bounce</button>
+        <button class="filter-btn" data-filter="setup" data-val="BREAKOUT" style="color:#f59e0b; font-weight:700;">🚀 Breakout</button>
+        <button class="filter-btn" data-filter="setup" data-val="EMA">9 EMA Buy</button>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Status:</span>
+        <button class="filter-btn active" data-filter="status" data-val="ALL">All Records</button>
+        <button class="filter-btn" data-filter="status" data-val="EXECUTED">Executed</button>
+        <button class="filter-btn" data-filter="status" data-val="SKIPPED">🚫 Skipped</button>
+        <button class="filter-btn" data-filter="status" data-val="SCANNING">🔍 3m Candle Logs</button>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">Result:</span>
+        <button class="filter-btn active" data-filter="res" data-val="ALL">All</button>
+        <button class="filter-btn" data-filter="res" data-val="WIN">Wins</button>
+        <button class="filter-btn" data-filter="res" data-val="LOSS">Losses</button>
+      </div>
+
+      <div>
+        <input type="text" id="inpSearch" class="search-input-full" placeholder="🔍 Search strike/time/reason..." />
+      </div>
+    </div>
+
+    <!-- Scrollable Trade Table -->
+    <div class="trades-scroll" style="max-height: 560px;">
+      <table class="trade-table-full">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Date & Time</th>
+            <th>Side</th>
+            <th>Strike</th>
+            <th>Entry Time</th>
+            <th>Entry Price</th>
+            <th>Exit Time</th>
+            <th>Exit Price</th>
+            <th>Exit Reason</th>
+            <th>Gross Pts</th>
+            <th title="Did the option premium reach +25 points or more above entry?">25 Pts Reached?</th>
+            <th title="Did the option premium reach +30 points or more above entry?">30 Pts Reached?</th>
+            <th title="Did the option premium reach +50 points or more above entry?">50 Pts Reached?</th>
+            <th>Net P&L (₹)</th>
+            <th>Duration</th>
+            <th>Reasoning / Skip Audit</th>
+          </tr>
+        </thead>
+        <tbody id="tradeTableBody">
+          <tr class="log-empty-row"><td colspan="17" style="text-align: center; padding: 30px; color: var(--text-muted);">🟢 3-Chart synchronization active (Spot, CE, PE). Awaiting next 3-minute candle close...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  TRADE ENTRY POPUP MODAL (fires on WATERFALL_TRADE_OPEN) -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="tradeEntryModalOverlay" style="display:none; z-index:9999;">
+  <div class="modal-card" id="tradeEntryModalCard" style="max-width:520px; border: 2px solid rgba(34,197,94,0.5); background: linear-gradient(180deg, rgba(34,197,94,0.06) 0%, #0c1526 100%);">
+    <div class="modal-header" style="border-bottom: 1px solid rgba(34,197,94,0.2);">
+      <span class="modal-icon" id="tradeEntryIcon">🎯</span>
+      <div class="modal-titles">
+        <h3 class="modal-title" id="tradeEntryTitle" style="color:#22c55e;">NEW LIVE TRADE SIGNAL</h3>
+        <p class="modal-subtitle" id="tradeEntrySubtitle">Confluence Engine — Place order in Zerodha immediately</p>
+      </div>
+      <button class="modal-close" id="tradeEntryClose">✕</button>
+    </div>
+    <div class="modal-body" id="tradeEntryBody">
+      <!-- Injected dynamically -->
+    </div>
+    <div class="modal-footer" style="border-top: 1px solid rgba(34,197,94,0.15); background: rgba(34,197,94,0.04);">
+      <button class="btn-secondary" id="btnTradeEntryDismiss" style="margin-left:auto;">✓ Got it — Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  MILESTONE TARGET REACHED POPUP MODAL               -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="milestoneModalOverlay" style="display:none; z-index:99999;">
+  <div class="modal-card" id="milestoneModalCard" style="max-width:540px; border: 2px solid rgba(34,197,94,0.7); background: linear-gradient(180deg, rgba(34,197,94,0.12) 0%, #0c1526 100%); box-shadow: 0 0 35px rgba(34,197,94,0.3);">
+    <div class="modal-header" style="border-bottom: 1px solid rgba(34,197,94,0.25);">
+      <span class="modal-icon" id="milestoneModalIcon" style="font-size:26px;">🎯</span>
+      <div class="modal-titles">
+        <h3 class="modal-title" id="milestoneModalTitle" style="color:#22c55e;">TARGET MILESTONE REACHED</h3>
+        <p class="modal-subtitle" id="milestoneModalSubtitle">Discretionary Exit Opportunity — Book Profit or Trail SL</p>
+      </div>
+      <button class="modal-close" id="milestoneModalClose" onclick="window.hideMilestoneModal()">✕</button>
+    </div>
+    <div class="modal-body" id="milestoneModalBody">
+      <!-- Injected dynamically -->
+    </div>
+    <div class="modal-footer" style="border-top: 1px solid rgba(34,197,94,0.2); background: rgba(34,197,94,0.04); display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <button class="btn-secondary" onclick="window.hideMilestoneModal()">✓ Hold Runner (Keep SL)</button>
+      <button class="btn-manual-exit" id="btnMilestoneModalExit" onclick="window.manualExitFromModal()">🚪 Exited in Zerodha (Close Trade)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  STRUCTURED REASONING MODAL                         -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="reasoningModalOverlay" style="display:none;">
+  <div class="modal-card" id="reasoningModalCard" style="max-width:640px;">
+    <div class="modal-header">
+      <span class="modal-icon" id="reasoningIcon">💡</span>
+      <div class="modal-titles">
+        <h3 class="modal-title" id="reasoningTitle">Signal Breakdown</h3>
+        <p class="modal-subtitle" id="reasoningSubtitle">Detailed Waterfall Rules & Confluence Audit</p>
+      </div>
+      <button class="modal-close" id="reasoningClose">✕</button>
+    </div>
+    <div class="modal-body" id="reasoningBody">
+      <!-- Injected dynamically -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="btnReasoningClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  TELEGRAM MOBILE ALERTS CONFIGURATION MODAL         -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="telegramModalOverlay" style="display:none; z-index:99999;">
+  <div class="modal-card" style="max-width:540px; border: 1px solid rgba(56,189,248,0.4); background: #0c1526;">
+    <div class="modal-header" style="border-bottom: 1px solid rgba(56,189,248,0.2);">
+      <span class="modal-icon" style="font-size:24px;">📱</span>
+      <div class="modal-titles">
+        <h3 class="modal-title" style="color:#38bdf8;">Telegram Mobile Alerts</h3>
+        <p class="modal-subtitle">Instant push alerts to your phone for live entries, SL trails, milestones & exits</p>
+      </div>
+      <button class="modal-close" id="btnTelegramClose">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex; flex-direction:column; gap:16px; padding:20px;">
+      <div style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); border-radius:8px; padding:12px; font-size:12px; line-height:1.5; color:#cbd5e1;">
+        <strong style="color:#38bdf8;">Quick Setup (2 mins):</strong><br/>
+        1. Open Telegram & search for <code style="color:#38bdf8;">@BotFather</code>. Send <code>/newbot</code> to get your <strong>Bot Token</strong>.<br/>
+        2. Search for <code style="color:#38bdf8;">@userinfobot</code> to get your personal <strong>Chat ID</strong>.<br/>
+        3. Paste both below and click <strong>Send Test Alert</strong>!
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Telegram Bot Token:</label>
+        <input type="text" id="inpTelegramToken" placeholder="e.g. 7123456789:AAFlkB4...xyz" style="background:#162032; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:9px 12px; font-family:var(--mono); font-size:12px; width:100%; box-sizing:border-box;" />
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Telegram Chat ID:</label>
+        <input type="text" id="inpTelegramChatId" placeholder="e.g. 123456789" style="background:#162032; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:9px 12px; font-family:var(--mono); font-size:12px; width:100%; box-sizing:border-box;" />
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="chkTgEnabled" checked style="accent-color:#38bdf8; cursor:pointer;" />
+          <span>Enable Live Telegram Notifications</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="chkTgEntries" checked style="accent-color:#38bdf8; cursor:pointer;" />
+          <span>Send Trade Entries (Strike, Price, SL, Setup)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="chkTgMilestones" checked style="accent-color:#38bdf8; cursor:pointer;" />
+          <span>Send Runner Milestones (+25, +30, +50 pts reached)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="chkTgSL" checked style="accent-color:#38bdf8; cursor:pointer;" />
+          <span>Send Trailing Stop Loss Moves</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="chkTgExits" checked style="accent-color:#38bdf8; cursor:pointer;" />
+          <span>Send Trade Exits & Today's Net P&L Summary</span>
+        </label>
+      </div>
+
+      <div id="tgStatusMsg" style="display:none; font-size:12px; padding:8px 12px; border-radius:6px;"></div>
+    </div>
+    <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+      <button class="btn-outline" id="btnTgTest" style="color:#38bdf8; border-color:rgba(56,189,248,0.5);">🔔 Send Test Alert to Phone</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-secondary" id="btnTgCancel">Cancel</button>
+        <button class="btn-primary" id="btnTgSave" style="background:#0284c7; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-weight:600; cursor:pointer;">💾 Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  TOAST NOTIFICATIONS                               -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="scripts/dashboard.js?v=2.1"></script>
+</body>
+</html>

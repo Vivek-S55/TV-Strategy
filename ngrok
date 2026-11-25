@@ -1,0 +1,3 @@
+curl -X POST https://statue-glitch-shopper.ngrok-free.dev/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"alert":"Triple Alignment: BEARISH","direction":"SELL","price":23341}'

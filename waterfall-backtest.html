@@ -1,0 +1,2795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Waterfall Backtest — Vivek's Strategy Dashboard</title>
+  <meta name="description" content="Waterfall Backtest Phase 1: 9 EMA Long Signal Entries across Nifty Spot & Option Premium Charts" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #060d18;
+      --surface: #0c1526;
+      --surface2: #121e35;
+      --surface3: #1a2a47;
+      --border: #1c2e4a;
+      --border-bright: #2d456b;
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.15);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.15);
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.2);
+      --purple: #8b5cf6;
+      --cyan: #06b6d4;
+      --text: #e2e8f0;
+      --text-muted: #8496b0;
+      --text-dim: #54657e;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ─── TOP NAV ────────────────────────────────────────── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-brand span.logo-icon {
+      font-size: 18px;
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .nav-badge {
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+    }
+    .nav-links {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+    .nav-link {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all .15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .nav-link:hover {
+      color: var(--text);
+      border-color: var(--blue);
+      background: var(--surface3);
+    }
+    .nav-link.active {
+      color: #fff;
+      background: rgba(59, 130, 246, 0.18);
+      border-color: var(--blue);
+    }
+
+    /* ─── STRATEGY BANNER ────────────────────────────────── */
+    .strat-banner {
+      background: linear-gradient(90deg, rgba(29, 78, 216, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
+      border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .strat-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .strat-pill {
+      background: var(--blue);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .strat-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .strat-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ─── PARAMETER CONTROLS ─────────────────────────────── */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .ctrl-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+    }
+    .ctrl-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .ctrl-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 4px;
+      padding: 3px 6px;
+      width: 65px;
+      text-align: right;
+    }
+    .ctrl-input:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+    .btn-action {
+      background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all .15s ease;
+    }
+    .btn-action:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .btn-export {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all .15s ease;
+    }
+    .btn-export:hover {
+      border-color: var(--text-muted);
+      background: var(--surface3);
+    }
+
+    /* ─── CONTAINER ──────────────────────────────────────── */
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* ─── KPI CARDS ──────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .kpi-row-1 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .kpi-row-2 {
+      grid-template-columns: repeat(5, 1fr);
+      margin-bottom: 22px;
+    }
+    @media (max-width: 1200px) {
+      .kpi-row-1 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .kpi-row-2 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 768px) {
+      .kpi-row-1, .kpi-row-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .15s ease;
+    }
+    .kpi-card:hover {
+      border-color: var(--border-bright);
+    }
+    .kpi-card.highlight-green {
+      background: linear-gradient(180deg, rgba(34, 197, 94, 0.05) 0%, var(--surface) 100%);
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+    .kpi-card.highlight-red {
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.05) 0%, var(--surface) 100%);
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      font-family: var(--mono);
+      letter-spacing: -0.02em;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .c-green { color: var(--green); }
+    .c-red   { color: var(--red); }
+    .c-blue  { color: var(--blue); }
+    .c-amber { color: var(--amber); }
+    .c-purple{ color: var(--purple); }
+
+    /* ─── SECTION HEADING ────────────────────────────────── */
+    .sec-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+    .sec-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sec-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ─── DAY CARDS ──────────────────────────────────────── */
+    .day-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .day-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      transition: all .15s ease;
+    }
+    .day-card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-2px);
+    }
+    .day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .day-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .day-pnl-pill {
+      font-size: 13px;
+      font-weight: 800;
+      font-family: var(--mono);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .day-pnl-pill.win {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .day-pnl-pill.loss {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .day-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .day-info-label {
+      color: var(--text-muted);
+    }
+    .day-info-val {
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--text);
+    }
+    .strikes-tags {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+    }
+    .strike-tag {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--mono);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .strike-tag.ce {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+    .strike-tag.pe {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    /* ─── CHARTS & SPLITS ────────────────────────────────── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 992px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+
+    /* ─── LEGS COMPARISON ────────────────────────────────── */
+    .legs-comp {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .leg-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+    }
+    .leg-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .leg-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .leg-badge.ce {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--green);
+    }
+    .leg-badge.pe {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+    }
+    .leg-pnl {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: var(--mono);
+    }
+    .leg-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      font-size: 11px;
+    }
+    .leg-metric-lbl {
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .leg-metric-val {
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    /* ─── STRIKE MATRIX ──────────────────────────────────── */
+    .matrix-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .matrix-table th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .matrix-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(28, 46, 74, 0.5);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .matrix-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* ─── TRADE LOG & FILTERS ────────────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .table-toolbar {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 4px;
+    }
+    .filter-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .filter-btn:hover {
+      color: var(--text);
+      border-color: var(--blue);
+    }
+    .filter-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .search-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+      padding: 5px 10px;
+      width: 180px;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--blue);
+    }
+    .trades-scroll {
+      max-height: 520px;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+    .trade-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .trade-table th {
+      position: sticky;
+      top: 0;
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+      white-space: nowrap;
+    }
+    .trade-table td {
+      padding: 8px 14px;
+      border-bottom: 1px solid rgba(28, 46, 74, 0.4);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .trade-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .badge-win {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--green);
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .badge-loss {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .badge-side-ce {
+      color: var(--green);
+      font-weight: 700;
+    }
+    .badge-side-pe {
+      color: var(--red);
+      font-weight: 700;
+    }
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .reason-cell {
+      max-width: 230px;
+      white-space: nowrap;
+    }
+    .reason-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.28);
+      color: #93c5fd;
+      font-size: 11px;
+      font-family: var(--font);
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: help;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: all .15s ease;
+    }
+    .reason-pill:hover {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: var(--blue);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+    }
+    .badge-near-ce {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-left: 4px;
+      cursor: help;
+      display: inline-block;
+    }
+    .badge-status-executed {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      gap: 4px;
+      min-width: 76px;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #4ade80;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-status-skipped {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      gap: 4px;
+      min-width: 76px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .row-skipped {
+      background: rgba(245, 158, 11, 0.035);
+    }
+    .row-skipped:hover td {
+      background: rgba(245, 158, 11, 0.08) !important;
+    }
+    .reason-pill.skipped {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fde68a;
+    }
+    .reason-pill.skipped:hover {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #f59e0b;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+    }
+
+    /* ─── LOADING SPINNER ────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+    /* ─── REASONING MODAL / POPUP ────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 9, 20, 0.78);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      max-width: 680px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-header {
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .modal-close-btn:hover {
+      color: #fff;
+    }
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-height: 75vh;
+      overflow-y: auto;
+    }
+    .reason-box {
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .reason-box-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .reason-box-content {
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #e2e8f0;
+      font-family: var(--font);
+    }
+    .reason-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .reason-meta-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .reason-meta-lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .reason-meta-val {
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 2px;
+      font-family: var(--mono);
+    }
+    .reason-pill {
+      cursor: pointer !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!--  TOP NAV                                           -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">⚡</span>
+      <span>Vivek's Dashboard</span>
+    </a>
+    <span class="nav-badge">WATERFALL BACKTEST</span>
+
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">🔴 Live Signals</a>
+      <a href="waterfall-backtest.html" class="nav-link active">🌊 Waterfall Engine</a>
+      <a href="options-backtest.html" class="nav-link">📊 Options Backtest</a>
+      <a href="backtest.html" class="nav-link">📈 Spot Backtest</a>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!--  STRATEGY BANNER & CONTROLS                         -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div class="strat-banner">
+    <div class="strat-info">
+      <span class="strat-pill" style="background: linear-gradient(135deg, #0284c7, #2563eb);">CONFLUENCE ENGINE FOCUS</span>
+      <div>
+        <div class="strat-title">October 26 – November 20, 2026 • 3-Chart Lockstep Confluence Engine (Nifty Spot + CE + PE)</div>
+        <div class="strat-desc">Multi-day backtest across 19 trading sessions with synchronized 3-chart triangulation, zone width risk caps, and 2-chart confirmations.</div>
+      </div>
+    </div>
+
+    <div class="controls-bar">
+      <div class="ctrl-item" title="Strike Selection Strategy">
+        <span class="ctrl-label">Strikes:</span>
+        <select id="selStrikeMode" class="ctrl-input" style="width: auto; padding: 2px 6px; font-family: var(--font); cursor: pointer;">
+          <option value="single" selected>Option A: 1 Strike / Side (±200 OTM)</option>
+          <option value="multi">All Assigned Strikes (±200 & ±300)</option>
+        </select>
+      </div>
+      <div class="ctrl-item" title="Choose Entry Trigger Signal (9 EMA Signal, 2-Bar RMI Support Bounce, CE Pullback Floor Bounce, or All)">
+        <span class="ctrl-label">Entry Signal:</span>
+        <select id="selEntrySignalMode" class="ctrl-input" style="width: auto; padding: 2px 6px; font-family: var(--font); cursor: pointer; color:#a78bfa; font-weight:600;">
+          <option value="both" selected>All Signals (9 EMA + RMI + CE Bounce)</option>
+          <option value="ce_bounce">CE Pullback / Floor Bounce Only</option>
+          <option value="rmi">2-Bar RMI Support Bounce Only</option>
+          <option value="ema">9 EMA Long Signal Only</option>
+        </select>
+      </div>
+      <div class="ctrl-item" title="Require HM Bullish State (RSI > 3 EMA & 21 WMA) for 9 EMA Long Entry">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRequireHM" checked style="cursor:pointer; accent-color:var(--blue);" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">HM Bullish (PVR)</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Exit trade when HM turns Bearish (RSI < 3 EMA & 21 WMA)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkExitHMBearish" style="cursor:pointer; accent-color:var(--red);" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">HM Bearish Exit</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="For entries forming <= 5 pts from Chandelier Exit line, exit immediately when previous candle's low is broken">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkNearCETrail" checked style="cursor:pointer; accent-color:#a855f7;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Near-CE Low Trail</span>
+        </label>
+        <input type="number" id="inpCEThreshold" class="ctrl-input" value="5" min="1" max="20" step="1" style="width:36px; text-align:center;" title="Threshold in points from CE line" />
+        <span style="font-size:10px; color:var(--text-muted);">pts</span>
+      </div>
+      <div class="ctrl-item" title="Unified Multi-Chart Structural Level Reclaim (200 EMA, CPR S1/R1, CE Line, RMI Center)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkUnifiedReclaim" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text); font-weight:600;">Unified Reclaim</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Chandelier Exit Springboard Entry (First-touch pullback with green bounce confirmation)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCESpringboard" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text); font-weight:600;">CE Springboard</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Do not attempt trades when Buy Signal forms inside active Sell Zone (max 2 retest attempts)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkFilterSellZone" checked style="cursor:pointer; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Filter Sell Zone</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Re-enter trades blocked inside a Sell Zone as soon as the ceiling breaks out (ensures opposite leg is exited)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkSellZoneBreakout" checked style="cursor:pointer; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Breakout Re-entry</span>
+        </label>
+        <input type="number" id="inpBreakoutExpiry" class="ctrl-input" value="15" min="1" max="60" step="1" style="width:36px; text-align:center;" title="Max bars to wait for Sell Zone ceiling breakout (default: 15 bars / 45m)" />
+        <span style="font-size:10px; color:var(--text-muted);">bars</span>
+      </div>
+      <div class="ctrl-item" title="Exit breakout trades immediately if candle closes back below the cleared Sell Zone ceiling (failed breakout defense)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkBreakoutSL" checked style="cursor:pointer; accent-color:#ef4444;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Breakout SL</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Spot 200 EMA Floor Defense Guard (Blocks PE breakout traps when Spot tests 200 EMA support)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkSpot200EMAGuard" checked style="cursor:pointer; accent-color:#38bdf8;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text); font-weight:600;">200 EMA Guard</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Ignore Sell Signal exits when price is resting inside active Buy Zone demand support (max 2 bounces)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkFilterBuyZone" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Filter Buy Zone</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="When exiting on Short Signal, ensure HM is Bearish confirmed (prevents false breakdown exits)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRequireHMExit" checked style="cursor:pointer; accent-color:#06b6d4;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">HM Confirmed Exit</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Exit trade when price touches/pierces CE line and closes below (rejection wick), or when previous candle touched CE and current breaks its low">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCERejection" checked style="cursor:pointer; accent-color:#ec4899;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CE Rejection Exit</span>
+        </label>
+        <input type="number" id="inpCERejectDist" class="ctrl-input" value="0" min="0" max="25" step="1" style="width:36px; text-align:center;" title="Distance tolerance from CE line (0 = Must Touch/Pierce CE)" />
+        <span style="font-size:10px; color:var(--text-muted);">pts</span>
+      </div>
+      <div class="ctrl-item" title="Trigger Buy entry when candle wicks into RMI Center support and holds over 2 consecutive bars">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRMIBounceEntry" checked style="cursor:pointer; accent-color:#8b5cf6;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">RMI Bounce Entry</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Trigger Buy entry when candle wicks into CE Floor support (green longStop line) and confirms over 2 bars">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCEBounceEntry" checked style="cursor:pointer; accent-color:#06b6d4;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CE Bounce Entry</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Exit trade immediately if candle closes below CE Floor green line (longStop dynamic support stop loss)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCEFloorSL" checked style="cursor:pointer; accent-color:#f43f5e;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CE Floor SL</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Exit trade immediately if candle closes below RMI Center line (dynamic support breakdown stop loss)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRMIFloorExit" checked style="cursor:pointer; accent-color:#f43f5e;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">RMI Floor SL</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Exit trade when candle wicks into overhead RMI resistance and is rejected over 2 bars (Pine Script Section 15.5)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRMIRejectionExit" checked style="cursor:pointer; accent-color:#a855f7;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">RMI Rejection Exit (15.5)</span>
+        </label>
+      </div>
+      <div class="ctrl-item" title="Fixed Target exit in points (e.g. 15, 25). If set, any trade reaching this profit exits immediately with 'Fixed Target Exit (+X pts)'. Leave empty to use dynamic exit logic.">
+        <span class="ctrl-label" style="font-weight:700; color:#38bdf8;">Fixed Target:</span>
+        <input type="number" id="inpFixedTarget" class="ctrl-input" placeholder="None" min="1" max="150" step="1" style="width:52px; text-align:center;" />
+        <span style="font-size:10px; color:var(--text-muted);">pts</span>
+      </div>
+      <div class="ctrl-item" title="Skip entries before 9:30 AM and after 2:45 PM IST">
+        <span class="ctrl-label">Hours:</span>
+        <input type="text" id="inpStartTime" class="ctrl-input" value="09:21" style="width:48px; text-align:center;" />
+        <span style="font-size:11px; color:var(--text-muted);">-</span>
+        <input type="text" id="inpEndTime" class="ctrl-input" value="14:45" style="width:48px; text-align:center;" />
+      </div>
+      <div class="ctrl-item">
+        <span class="ctrl-label">Lot:</span>
+        <input type="number" id="inpLotSize" class="ctrl-input" value="75" min="1" step="25" style="width:55px;" />
+      </div>
+      <div class="ctrl-item">
+        <span class="ctrl-label">Brok:</span>
+        <span style="font-size: 11px; color: var(--text-muted);">₹</span>
+        <input type="number" id="inpCommission" class="ctrl-input" value="20" min="0" step="5" style="width:48px;" />
+      </div>
+      <div class="ctrl-item">
+        <span class="ctrl-label">Slip:</span>
+        <input type="number" id="inpSlippage" class="ctrl-input" value="0" min="0" step="0.25" style="width:45px;" />
+      </div>
+      <button class="btn-action" id="btnRunBacktest">
+        <span id="btnIcon">▶</span>
+        <span id="btnLabel">Re-run</span>
+      </button>
+      <button class="btn-export" id="btnExportCSV">📥 Export CSV</button>
+    </div>
+
+    <!-- ─── CONFLUENCE ENGINE & CPR CONTROLS (Sep 30 Framework) ─── -->
+    <div class="controls-bar" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(45, 69, 107, 0.4); width: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 12px; letter-spacing: 0.05em;">30 SEP CONFLUENCE</span>
+      </div>
+
+      <div class="ctrl-item" title="Enable 3-Chart Lockstep Confluence Engine (Nifty Spot + CE + PE) on Sep 30">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkEnableConfluence" checked style="cursor:pointer; accent-color:#38bdf8;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text); font-weight:700;">Confluence Engine</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Maximum allowed Buy Zone width in points. Zones wider than this are skipped to avoid chasing wide risk (e.g. 10:33 PE 34.3 pt zone skipped).">
+        <span class="ctrl-label">Max Zone:</span>
+        <input type="number" id="inpMaxZoneWidth" class="ctrl-input" value="20" min="5" max="60" step="5" style="width:40px; text-align:center;" />
+        <span style="font-size:10px; color:var(--text-muted);">pts</span>
+      </div>
+
+      <div class="ctrl-item" title="Retracement percentage for entering skipped wide zones on discount pullback (default: 50% discount pullback)">
+        <span class="ctrl-label">Retrace:</span>
+        <input type="number" id="inpZoneRetracementPct" class="ctrl-input" value="50" min="10" max="90" step="5" style="width:40px; text-align:center;" />
+        <span style="font-size:10px; color:var(--text-muted);">%</span>
+      </div>
+
+      <div class="ctrl-item" title="Exit if price fails to clear the signal candle's high within N consecutive bars (e.g. 09:18 PE exited at 09:48 after 10 bars)">
+        <span class="ctrl-label">Stagnation:</span>
+        <input type="number" id="inpStagnationBars" class="ctrl-input" value="10" min="3" max="25" step="1" style="width:36px; text-align:center;" />
+        <span style="font-size:10px; color:var(--text-muted);">bars</span>
+      </div>
+
+      <div class="ctrl-item" title="Exit on CPR Resistance (R1, R3) and Support (S1, S3, PP) flips across Spot and Options (R2 and S2 strictly excluded per user specification)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkEnableCPRExits" checked style="cursor:pointer; accent-color:#a855f7;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CPR S/R Exits (R1, R3, S1, S3, PP)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Exit when Volume Strength crosses RSI from below during price stalling near CPR R1 (e.g. 09:57 CE exited at 10:27)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkEnableHMVolExit" checked style="cursor:pointer; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">HM Vol Reversal Exit</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Filter false single-chart rejection noise when confirmed by other 2 charts (e.g. holding through 12:27 false alarm to exit at 13:12 for +42 pts)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkFilterFalseRejections" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Filter False Noise</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Strict Bull Filter: Blocks counter-trend PE trades when Nifty is > 200 EMA + 15 and > CPR PP + 15 (unchecked = bypassed)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkStrictBull" checked style="cursor:pointer; accent-color:#3b82f6;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Strict Bull Filter</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Strict Bear Filter: Blocks counter-trend CE trades when Nifty is < 200 EMA - 15 and < CPR PP - 15 (unchecked = bypassed)">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkStrictBear" checked style="cursor:pointer; accent-color:#ef4444;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Strict Bear Filter</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Setup 9: Hammer Wick Continuation Entry — Enters when a buy candle forms lower wick > upper wick near RMI/CE/CPR lines, confirmed by the next candle closing higher">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkHammerContinuation" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Hammer Continuation (Setup 9)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" style="opacity:0.6;" title="Setup 10: CE Long Stop 2-Candle Bounce Entry (Disabled) — Enters when price touches the Chandelier Exit Long Stop line and holds for 2 consecutive candles, confirming institutional support. SL = CE Long Stop line.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:not-allowed;">
+          <input type="checkbox" id="chkCELineBounce" disabled style="cursor:not-allowed; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="color:var(--text-muted);">CE Line 2-Candle Bounce (Setup 10)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Nifty 9 EMA Alignment Check — Requires Nifty 50 candle close to be above its 9 EMA for CE EMA trades, and below its 9 EMA for PE EMA trades, filtering false single-chart breakout traps.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkNifty9EMAAlignment" checked style="cursor:pointer; accent-color:#06b6d4;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Nifty 9 EMA Alignment</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Counter-Breakout Exit — Immediately exits PE if Nifty Spot and CE confirm a simultaneous Buy signal, or exits CE if Nifty Spot and PE confirm a reverse breakout. Uses last recorded price if cycle has no tick.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCounterBreakoutExit" checked style="cursor:pointer; accent-color:#ec4899;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Counter-Breakout Exit</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Candle B RMI Reclaim (Setup 2c) — When a wide-zone breakout signal candle is followed by Candle B dipping to test and holding above the RMI Centerline, aligned with Nifty 9 EMA and opposite strike failing, triggers immediate entry at Candle B close.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCandleBRMIReclaim" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Candle B RMI Reclaim (Setup 2c)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="RMI Support Hold (Exit Optimization) — When an exit signal (Counter-Breakout or TV Short Signal) forms but price is holding support near the RMI Centerline (within 10 pts), defers exit and sets signal candle low as invalidation SL.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRMISupportHold" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">RMI Support Hold (Exit Defer)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Cross-Strike Inflection (Setup 11) — When candidate option prints a Buy signal while opposite option simultaneously prints a Sell signal with coordinated rejection wicks, enters reversal with dynamic signal candle low as SL.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCrossStrikeInflection" checked style="cursor:pointer; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Cross-Strike Inflection (Setup 11)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="CPR Resistance Ceiling & Opening Sweep Filter — Blocks entering options within 5-8 pts of daily CPR R1 resistance without a clean breakout close, eliminating opening mean-reversion trap risk.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCPRResistanceFilter" checked style="cursor:pointer; accent-color:#38bdf8;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CPR R1 Ceiling Filter</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Spot CPR Conflict Filter — Prevents PE entries when Nifty Spot is testing its daily CPR S1 floor, and prevents CE entries when Nifty Spot is testing its daily CPR R1 ceiling.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkSpotCPRConflictFilter" checked style="cursor:pointer; accent-color:#38bdf8;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Spot CPR Conflict Filter</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Support Bounce Exhaustion Filter — Blocks bounce entries that print severe shooting star upper wicks (>=12 pts > body) or vertical climax expansions (>65 pts across 2 bars).">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkBounceExhaustionFilter" checked style="cursor:pointer; accent-color:#ec4899;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Bounce Exhaustion Filter</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Opposite CPR R1 Sweep Reversal Entry — When a candidate option gets rejected at daily CPR R1 resistance during 09:15–11:00 AM, queues an opposite strike reversal trade that enters on the next candle if it confirms with a green close, with a tight stop loss at the sweep low.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCPRReversalEntry" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Opposite CPR R1 Reversal</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Dual Structural Ceiling Rejection Filter — Blocks buying options when candle high tests both 200 EMA and CPR Central Pivot (PP) from below and closes below both with an upper wick rejection.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkDualCeilingFilter" checked style="cursor:pointer; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Dual Ceiling Rejection Filter</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Pivot Retracement Queue — When strict macro trend is active, allows queuing 50% discount retracements when Spot is within 25 pts of CPR Central Pivot (PP) with candle reversal confirmation.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkPivotRetracementQueue" checked style="cursor:pointer; accent-color:#06b6d4;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Pivot 50% Retracement Queue</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Next-Candle RMI Reclaim Breakout (Setup 12) — When a candidate option Buy signal touches RMI Center and closes below, queues for 1-2 bars; enters if next candle closes above RMI Center.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkRMIReclaimEntry" checked style="cursor:pointer; accent-color:#8b5cf6;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">RMI Center Reclaim Breakout</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Candle B Multi-Chart Trend Breakout (Setup 13) — When a Buy signal candle is unconfirmed, if Candle B closes above Candle A high with complete 3-chart trend alignment across Spot and Counter-Strike, enters at Candle B close (max 20 pt SL).">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCandleBTrendBreakout" checked style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Candle B Trend Breakout (Setup 13)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="CE Line Wick Breakout (Setup 17) — When a Buy signal candle is skipped due to overhead wick rejection on the Chandelier Exit line, if price breaks and closes above the rejection high within 4 candles (12 mins), enters with Stop Loss = Invalidation - 2.50 pts.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCELineWickBreakout" checked style="cursor:pointer; accent-color:#06b6d4;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CE Line Wick Breakout (Setup 17)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Dead-Cat Bounce Guard (Setup 12 Update) — Prevents buying sharp V-shape relief bounces after steep drops (>35 pts) unless Candle 2 confirms with a higher low and green close.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkDeadCatBounceGuard" checked style="cursor:pointer; accent-color:#38bdf8;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Dead-Cat Guard</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="Macro Regime Inflection Reversal (Setup 16) — In Strict Bull/Bear, when Spot fires a counter signal, target option crosses RMI/CE line with Buy signal, and opposite option breaks below RMI/CE line with Sell signal, enters immediately with max 20 pt SL and 1:4 Target.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkMacroRegimeInflection" style="cursor:pointer; accent-color:#f59e0b;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Macro Regime Inflection (Setup 16)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="⚡ Daily Circuit Breaker — Halts trading for the rest of the day after 2 consecutive losses to prevent runaway drawdown on hostile/choppy days.">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkDailyCircuitBreaker" style="cursor:pointer; accent-color:#10b981;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">Daily Circuit Breaker (Max 2 Losses)</span>
+        </label>
+      </div>
+
+      <div class="ctrl-item" title="🛡️ CPR Squeeze & Dynamic VWAP Guard — Filters out false breakouts when Spot is trapped inside CPR PP with low volume, and blocks deep counter-trend entries (>25 pts away from VWAP).">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+          <input type="checkbox" id="chkCPRSqueezeGuard" checked style="cursor:pointer; accent-color:#06b6d4;" />
+          <span class="ctrl-label" style="cursor:pointer; color:var(--text);">CPR Squeeze & VWAP Guard</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!--  MAIN CONTENT                                      -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <main class="container">
+
+    <!-- ROW 1: NET PROFIT & RUNNER MILESTONE PROFITS (4 Boxes) -->
+    <div class="kpi-grid kpi-row-1">
+      <!-- NET PNL -->
+      <div class="kpi-card highlight-green" id="cardNetPnL">
+        <div class="kpi-label">
+          <span>Net P&L (₹)</span>
+          <span style="font-size:14px;">💰</span>
+        </div>
+        <div class="kpi-value c-green" id="valNetPnL">₹0.00</div>
+        <div class="kpi-sub">
+          <span>Gross: <strong id="valGrossPnL">₹0.00</strong></span>
+          <span>•</span>
+          <span>Brokerage: <strong id="valBrokerage">₹0.00</strong></span>
+        </div>
+      </div>
+
+      <!-- 25 PTS REACHED -->
+      <div class="kpi-card" id="card25Pts" style="border-top: 3px solid #38bdf8; background: linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, var(--surface) 100%);">
+        <div class="kpi-label">
+          <span>25 PTS REACHED (NET)</span>
+          <span style="font-size:14px;">🎯</span>
+        </div>
+        <div class="kpi-value" style="color: #38bdf8;" id="val25PtsProfit">+₹0.00</div>
+        <div class="kpi-sub">
+          <span><strong id="val25PtsCount" style="color:var(--text);">0 Trades</strong> (<span id="val25PtsPct">0.0%</span> Hit Rate)</span>
+          <span>•</span>
+          <span id="val25PtsSub" style="color:var(--text-muted);">Gross: +₹0</span>
+        </div>
+      </div>
+
+      <!-- 30 PTS REACHED -->
+      <div class="kpi-card" id="card30Pts" style="border-top: 3px solid #a78bfa; background: linear-gradient(180deg, rgba(167, 139, 250, 0.08) 0%, var(--surface) 100%);">
+        <div class="kpi-label">
+          <span>30 PTS REACHED (NET)</span>
+          <span style="font-size:14px;">🚀</span>
+        </div>
+        <div class="kpi-value" style="color: #a78bfa;" id="val30PtsProfit">+₹0.00</div>
+        <div class="kpi-sub">
+          <span><strong id="val30PtsCount" style="color:var(--text);">0 Trades</strong> (<span id="val30PtsPct">0.0%</span> Hit Rate)</span>
+          <span>•</span>
+          <span id="val30PtsSub" style="color:var(--text-muted);">Gross: +₹0</span>
+        </div>
+      </div>
+
+      <!-- 50 PTS REACHED -->
+      <div class="kpi-card" id="card50Pts" style="border-top: 3px solid #4ade80; background: linear-gradient(180deg, rgba(74, 222, 128, 0.08) 0%, var(--surface) 100%);">
+        <div class="kpi-label">
+          <span>50 PTS REACHED (NET)</span>
+          <span style="font-size:14px;">🏆</span>
+        </div>
+        <div class="kpi-value" style="color: #4ade80;" id="val50PtsProfit">+₹0.00</div>
+        <div class="kpi-sub">
+          <span><strong id="val50PtsCount" style="color:var(--text);">0 Trades</strong> (<span id="val50PtsPct">0.0%</span> Hit Rate)</span>
+          <span>•</span>
+          <span id="val50PtsSub" style="color:var(--text-muted);">Gross: +₹0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: OVERALL STRATEGY PERFORMANCE METRICS (5 Boxes) -->
+    <div class="kpi-grid kpi-row-2">
+      <!-- WIN RATE -->
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Win Rate</span>
+          <span style="font-size:14px;">🎯</span>
+        </div>
+        <div class="kpi-value" id="valWinRate">0.0%</div>
+        <div class="kpi-sub">
+          <span class="c-green" id="valWins">0 Wins</span>
+          <span>/</span>
+          <span class="c-red" id="valLosses">0 Losses</span>
+          <span>(<span id="valTotalTrades">0</span> total)</span>
+        </div>
+      </div>
+
+      <!-- PROFIT FACTOR -->
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Profit Factor</span>
+          <span style="font-size:14px;">⚖️</span>
+        </div>
+        <div class="kpi-value c-blue" id="valProfitFactor">0.00</div>
+        <div class="kpi-sub">
+          <span>Profit: <strong class="c-green" id="valGrossProfit">₹0</strong></span>
+          <span>•</span>
+          <span>Loss: <strong class="c-red" id="valGrossLoss">₹0</strong></span>
+        </div>
+      </div>
+
+      <!-- RISK / REWARD -->
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Avg Win / Avg Loss</span>
+          <span style="font-size:14px;">📊</span>
+        </div>
+        <div class="kpi-value c-purple" id="valPayoffRatio">0.00x</div>
+        <div class="kpi-sub">
+          <span>Avg Win: <strong class="c-green" id="valAvgWin">₹0</strong></span>
+          <span>•</span>
+          <span>Avg Loss: <strong class="c-red" id="valAvgLoss">₹0</strong></span>
+        </div>
+      </div>
+
+      <!-- MAX DRAWDOWN -->
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>Max Drawdown</span>
+          <span style="font-size:14px;">📉</span>
+        </div>
+        <div class="kpi-value c-red" id="valMaxDrawdown">₹0.00</div>
+        <div class="kpi-sub">
+          <span>Peak-to-trough equity drop</span>
+        </div>
+      </div>
+
+      <!-- FILTERED SIGNALS -->
+      <div class="kpi-card" style="border-left: 3px solid #f59e0b;">
+        <div class="kpi-label">
+          <span>Filtered / Skipped</span>
+          <span style="font-size:14px;">🛡️</span>
+        </div>
+        <div class="kpi-value" style="color: #fbbf24;" id="valSkippedCount">0</div>
+        <div class="kpi-sub">
+          <span>Counter-trend traps avoided</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY PERFORMANCE BREAKDOWN CARDS -->
+    <div class="sec-hd">
+      <div class="sec-title">
+        <span>📅 Multi-Day Performance Breakdown (Oct 26 – Nov 23)</span>
+        <span class="sec-badge">Dynamic Nifty Spot Selection</span>
+      </div>
+    </div>
+
+    <div class="day-grid" id="dayCardsContainer">
+      <!-- Injected dynamically -->
+    </div>
+
+    <!-- CHARTS & LEG BREAKDOWN ROW -->
+    <div class="charts-row">
+      <!-- Cumulative Equity Chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📈 Cumulative Equity Curve (Net P&L)</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);" id="equityPointsCount">84 Trades</div>
+        </div>
+        <div class="chart-container">
+          <canvas id="equityChart"></canvas>
+        </div>
+      </div>
+
+      <!-- CE vs PE Performance Split -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>⚖️ CE Leg vs PE Leg Split</span>
+          </div>
+        </div>
+        <div class="legs-comp">
+          <!-- CE Card -->
+          <div class="leg-card">
+            <div class="leg-top">
+              <span class="leg-badge ce">CALL OPTIONS (CE)</span>
+              <span class="leg-pnl" id="ceNetPnL">₹0.00</span>
+            </div>
+            <div class="leg-metric-grid">
+              <div>
+                <div class="leg-metric-lbl">Trades</div>
+                <div class="leg-metric-val" id="ceTrades">0</div>
+              </div>
+              <div>
+                <div class="leg-metric-lbl">Win Rate</div>
+                <div class="leg-metric-val" id="ceWinRate">0%</div>
+              </div>
+              <div>
+                <div class="leg-metric-lbl">Points</div>
+                <div class="leg-metric-val" id="cePoints">0.0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PE Card -->
+          <div class="leg-card">
+            <div class="leg-top">
+              <span class="leg-badge pe">PUT OPTIONS (PE)</span>
+              <span class="leg-pnl" id="peNetPnL">₹0.00</span>
+            </div>
+            <div class="leg-metric-grid">
+              <div>
+                <div class="leg-metric-lbl">Trades</div>
+                <div class="leg-metric-val" id="peTrades">0</div>
+              </div>
+              <div>
+                <div class="leg-metric-lbl">Win Rate</div>
+                <div class="leg-metric-val" id="peWinRate">0%</div>
+              </div>
+              <div>
+                <div class="leg-metric-lbl">Points</div>
+                <div class="leg-metric-val" id="pePoints">0.0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STRIKE PERFORMANCE MATRIX -->
+    <div class="sec-hd">
+      <div class="sec-title">
+        <span>🎯 Strike Performance Matrix</span>
+        <span class="sec-badge">16 Option Chart Combinations</span>
+      </div>
+    </div>
+
+    <div class="matrix-wrap">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Side</th>
+            <th>Strike</th>
+            <th>Trades</th>
+            <th>Wins</th>
+            <th>Win Rate</th>
+            <th>Net Points</th>
+            <th>Net P&L (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="strikeMatrixBody">
+          <!-- Injected dynamically -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- COMPREHENSIVE TRADE LOG -->
+    <div class="sec-hd">
+      <div class="sec-title">
+        <span>📜 Detailed Trade Log</span>
+        <span class="sec-badge" id="tradeLogCount">84 Trades</span>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="filter-group">
+          <span class="filter-label">Day:</span>
+          <button class="filter-btn active" data-filter="day" data-val="ALL">All Days (Oct 26 – Nov 13)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-10-26">Oct 26 (Mon)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-10-27">Oct 27 (Tue)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-10-28">Oct 28 (Wed)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-10-29">Oct 29 (Thu)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-10-30">Oct 30 (Fri)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-02">Nov 02 (Mon)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-03">Nov 03 (Tue)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-04">Nov 04 (Wed)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-05">Nov 05 (Thu)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-06">Nov 06 (Fri)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-09">Nov 09 (Mon)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-11">Nov 11 (Wed)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-12">Nov 12 (Thu)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-13">Nov 13 (Fri)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-16">Nov 16 (Mon)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-17">Nov 17 (Tue)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-18">Nov 18 (Wed)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-19">Nov 19 (Thu)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-20">Nov 20 (Fri)</button>
+          <button class="filter-btn" data-filter="day" data-val="2026-11-23">Nov 23 (Mon)</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">Side:</span>
+          <button class="filter-btn active" data-filter="side" data-val="ALL">All</button>
+          <button class="filter-btn" data-filter="side" data-val="CE">CE Only</button>
+          <button class="filter-btn" data-filter="side" data-val="PE">PE Only</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">Setup:</span>
+          <button class="filter-btn active" data-filter="setup" data-val="ALL">All Setups</button>
+          <button class="filter-btn" data-filter="setup" data-val="CONFLUENCE" style="color:#38bdf8; font-weight:700;">🧩 Confluence</button>
+          <button class="filter-btn" data-filter="setup" data-val="CE_BOUNCE" style="color:#06b6d4; font-weight:700;">🎯 CE Bounce</button>
+          <button class="filter-btn" data-filter="setup" data-val="RMI_BOUNCE" style="color:#a78bfa; font-weight:700;">📐 RMI Bounce</button>
+          <button class="filter-btn" data-filter="setup" data-val="BREAKOUT" style="color:#f59e0b; font-weight:700;">🚀 Breakout</button>
+          <button class="filter-btn" data-filter="setup" data-val="EMA">9 EMA Buy</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">Status:</span>
+          <button class="filter-btn active" data-filter="status" data-val="ALL">All Signals</button>
+          <button class="filter-btn" data-filter="status" data-val="EXECUTED">Executed</button>
+          <button class="filter-btn" data-filter="status" data-val="SKIPPED">🚫 Skipped</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">Result:</span>
+          <button class="filter-btn active" data-filter="res" data-val="ALL">All</button>
+          <button class="filter-btn" data-filter="res" data-val="WIN">Wins</button>
+          <button class="filter-btn" data-filter="res" data-val="LOSS">Losses</button>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">Reasoning:</span>
+          <select id="selReasoningFilter" class="search-input" style="width: auto; min-width: 220px; max-width: 320px; font-family: var(--font); cursor: pointer; padding: 4px 8px; font-size: 11px; font-weight: 500;">
+            <option value="ALL">All Reasonings (All Setups)</option>
+          </select>
+        </div>
+
+        <div>
+          <input type="text" id="inpSearch" class="search-input" placeholder="🔍 Search strike/time/reason..." />
+        </div>
+      </div>
+
+      <div class="trades-scroll">
+        <table class="trade-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Status</th>
+              <th>Date & Time</th>
+              <th>Side</th>
+              <th>Strike</th>
+              <th>Entry Time</th>
+              <th>Entry Price</th>
+              <th>Exit Time</th>
+              <th>Exit Price</th>
+              <th>Exit Reason</th>
+              <th>Gross Pts</th>
+              <th title="Did the option premium reach +25 points or more above entry at any point while running?">25 Pts Reached?</th>
+              <th title="Did the option premium reach +30 points or more above entry at any point while running?">30 Pts Reached?</th>
+              <th title="Did the option premium reach +50 points or more above entry at any point while running?">50 Pts Reached?</th>
+              <th>Net P&L (₹)</th>
+              <th>Duration</th>
+              <th>Cumulative Net</th>
+              <th>Reasoning / Skip Audit</th>
+            </tr>
+          </thead>
+          <tbody id="tradeTableBody">
+            <!-- Injected dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- REASONING DETAIL MODAL -->
+  <div id="reasoningModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">
+          <span>💡 Trade Decision Reasoning</span>
+        </div>
+        <button class="modal-close-btn" id="modalCloseBtn" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentData = null;
+    let equityChartInstance = null;
+    let filterDay = 'ALL';
+    let filterSide = 'ALL';
+    let filterSetup = 'ALL';
+    let filterRes = 'ALL';
+    let filterStatus = 'ALL';
+    let filterReasoning = 'ALL';
+    let searchQuery = '';
+
+    // Formatting Helpers
+    const fmtINR = (val) => {
+      const num = parseFloat(val) || 0;
+      const sign = num > 0 ? '+' : '';
+      return `${sign}₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const fmtPts = (val) => {
+      const num = parseFloat(val) || 0;
+      const sign = num > 0 ? '+' : '';
+      return `${sign}${num.toFixed(2)} pts`;
+    };
+
+    const formatDateTime = (isoString) => {
+      if (!isoString || isoString === 'Start') return isoString || '—';
+      const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (!match) return isoString;
+      const [_, y, m, d, hh, mm] = match;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      const hourNum = parseInt(hh, 10);
+      const ampm = hourNum >= 12 ? 'PM' : 'AM';
+      const hour12 = hourNum % 12 || 12;
+      const hourStr = hour12 < 10 ? '0' + hour12 : '' + hour12;
+      return `${d} ${monthName}, ${hourStr}:${mm} ${ampm}`;
+    };
+
+    const formatShortDateTime = (isoString) => {
+      if (!isoString || isoString === 'Start') return isoString || '—';
+      const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (!match) return isoString;
+      const [_, y, m, d, hh, mm] = match;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      const hourNum = parseInt(hh, 10);
+      const ampm = hourNum >= 12 ? 'PM' : 'AM';
+      const hour12 = hourNum % 12 || 12;
+      const hourStr = hour12 < 10 ? '0' + hour12 : '' + hour12;
+      return `${d} ${monthName} ${hourStr}:${mm} ${ampm}`;
+    };
+
+    const formatTimeOnly = (isoString) => {
+      if (!isoString) return '—';
+      const match = isoString.match(/T(\d{2}):(\d{2})/);
+      if (!match) return isoString;
+      const [_, hh, mm] = match;
+      const hourNum = parseInt(hh, 10);
+      const ampm = hourNum >= 12 ? 'PM' : 'AM';
+      const hour12 = hourNum % 12 || 12;
+      const hourStr = hour12 < 10 ? '0' + hour12 : '' + hour12;
+      return `${hourStr}:${mm} ${ampm}`;
+    };
+
+    const formatDateOnly = (dateStr) => {
+      if (!dateStr) return '—';
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!match) return dateStr;
+      const [_, y, m, d] = match;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthName = months[parseInt(m, 10) - 1] || m;
+      return `${d} ${monthName}`;
+    };
+
+    // Run Backtest via API
+    async function fetchBacktest() {
+      const btn = document.getElementById('btnRunBacktest');
+      const btnIcon = document.getElementById('btnIcon');
+      const btnLabel = document.getElementById('btnLabel');
+
+      btnIcon.innerHTML = '<span class="spinner"></span>';
+      btnLabel.textContent = 'Running...';
+      btn.disabled = true;
+
+      try {
+        const lotSize = document.getElementById('inpLotSize').value || 75;
+        const commission = document.getElementById('inpCommission').value || 20;
+        const slippage = document.getElementById('inpSlippage').value || 0;
+        const entryStartTime = document.getElementById('inpStartTime') ? document.getElementById('inpStartTime').value.trim() : '09:21';
+        const entryEndTime = document.getElementById('inpEndTime') ? document.getElementById('inpEndTime').value.trim() : '14:45';
+        const strikeMode = document.getElementById('selStrikeMode') ? document.getElementById('selStrikeMode').value : 'single';
+        const fixedTarget = document.getElementById('inpFixedTarget') ? document.getElementById('inpFixedTarget').value.trim() : '';
+        const targetPts = fixedTarget || '0';
+        const requireHMBullish = document.getElementById('chkRequireHM') ? document.getElementById('chkRequireHM').checked : true;
+        const exitOnHMBearish = document.getElementById('chkExitHMBearish') ? document.getElementById('chkExitHMBearish').checked : false;
+        const enableNearCETrail = document.getElementById('chkNearCETrail') ? document.getElementById('chkNearCETrail').checked : true;
+        const ceNearThreshold = document.getElementById('inpCEThreshold') ? document.getElementById('inpCEThreshold').value : '5';
+        const filterInsideSellZone = document.getElementById('chkFilterSellZone') ? document.getElementById('chkFilterSellZone').checked : true;
+        const enableSellZoneBreakout = document.getElementById('chkSellZoneBreakout') ? document.getElementById('chkSellZoneBreakout').checked : true;
+        const breakoutExpiryBars = document.getElementById('inpBreakoutExpiry') ? document.getElementById('inpBreakoutExpiry').value : '15';
+        const enableBreakoutSL = document.getElementById('chkBreakoutSL') ? document.getElementById('chkBreakoutSL').checked : true;
+        const filterInsideBuyZone = document.getElementById('chkFilterBuyZone') ? document.getElementById('chkFilterBuyZone').checked : true;
+        const requireHMExitConfirmation = document.getElementById('chkRequireHMExit') ? document.getElementById('chkRequireHMExit').checked : true;
+        const enableCERejectionExit = document.getElementById('chkCERejection') ? document.getElementById('chkCERejection').checked : true;
+        const ceRejectionDist = document.getElementById('inpCERejectDist') ? document.getElementById('inpCERejectDist').value : '0';
+        const entrySignalMode = document.getElementById('selEntrySignalMode') ? document.getElementById('selEntrySignalMode').value : 'both';
+        const enableRMIBounceEntry = document.getElementById('chkRMIBounceEntry') ? document.getElementById('chkRMIBounceEntry').checked : true;
+        const enableCEBounceEntry = document.getElementById('chkCEBounceEntry') ? document.getElementById('chkCEBounceEntry').checked : true;
+        const enableCEFloorSL = document.getElementById('chkCEFloorSL') ? document.getElementById('chkCEFloorSL').checked : true;
+        const enableRMIFloorExit = document.getElementById('chkRMIFloorExit') ? document.getElementById('chkRMIFloorExit').checked : true;
+        const enableRMIRejectionExit = document.getElementById('chkRMIRejectionExit') ? document.getElementById('chkRMIRejectionExit').checked : true;
+        const enableConfluenceMode = document.getElementById('chkEnableConfluence') ? document.getElementById('chkEnableConfluence').checked : true;
+        const maxZoneWidth = document.getElementById('inpMaxZoneWidth') ? document.getElementById('inpMaxZoneWidth').value : '20';
+        const zoneRetracementPct = document.getElementById('inpZoneRetracementPct') ? (parseFloat(document.getElementById('inpZoneRetracementPct').value) / 100) : 0.50;
+        const stagnationBars = document.getElementById('inpStagnationBars') ? document.getElementById('inpStagnationBars').value : '10';
+        const enableCPRExits = document.getElementById('chkEnableCPRExits') ? document.getElementById('chkEnableCPRExits').checked : true;
+        const enableHMVolExit = document.getElementById('chkEnableHMVolExit') ? document.getElementById('chkEnableHMVolExit').checked : true;
+        const filterFalseRejections = document.getElementById('chkFilterFalseRejections') ? document.getElementById('chkFilterFalseRejections').checked : true;
+        const enableStrictBull = document.getElementById('chkStrictBull') ? document.getElementById('chkStrictBull').checked : true;
+        const enableStrictBear = document.getElementById('chkStrictBear') ? document.getElementById('chkStrictBear').checked : true;
+        const enableHammerContinuation = document.getElementById('chkHammerContinuation') ? document.getElementById('chkHammerContinuation').checked : true;
+        const enableCELineBounce = false; // Always disabled
+        const enableCandleBTrendBreakout = document.getElementById('chkCandleBTrendBreakout') ? document.getElementById('chkCandleBTrendBreakout').checked : true;
+        const enableCELineWickBreakout = document.getElementById('chkCELineWickBreakout') ? document.getElementById('chkCELineWickBreakout').checked : true;
+        const enableNifty9EMAAlignment = document.getElementById('chkNifty9EMAAlignment') ? document.getElementById('chkNifty9EMAAlignment').checked : true;
+        const enableCounterBreakoutExit = document.getElementById('chkCounterBreakoutExit') ? document.getElementById('chkCounterBreakoutExit').checked : true;
+        const enableCandleBRMIReclaim = document.getElementById('chkCandleBRMIReclaim') ? document.getElementById('chkCandleBRMIReclaim').checked : true;
+        const enableRMISupportHold = document.getElementById('chkRMISupportHold') ? document.getElementById('chkRMISupportHold').checked : true;
+        const enableCrossStrikeInflection = document.getElementById('chkCrossStrikeInflection') ? document.getElementById('chkCrossStrikeInflection').checked : true;
+        const enableCPRResistanceFilter = document.getElementById('chkCPRResistanceFilter') ? document.getElementById('chkCPRResistanceFilter').checked : true;
+        const enableSpotCPRConflictFilter = document.getElementById('chkSpotCPRConflictFilter') ? document.getElementById('chkSpotCPRConflictFilter').checked : true;
+        const enableBounceExhaustionFilter = document.getElementById('chkBounceExhaustionFilter') ? document.getElementById('chkBounceExhaustionFilter').checked : true;
+        const enableCPRReversalEntry = document.getElementById('chkCPRReversalEntry') ? document.getElementById('chkCPRReversalEntry').checked : true;
+        const enableDualCeilingFilter = document.getElementById('chkDualCeilingFilter') ? document.getElementById('chkDualCeilingFilter').checked : true;
+        const enablePivotRetracementQueue = document.getElementById('chkPivotRetracementQueue') ? document.getElementById('chkPivotRetracementQueue').checked : true;
+        const enableRMIReclaimEntry = document.getElementById('chkRMIReclaimEntry') ? document.getElementById('chkRMIReclaimEntry').checked : true;
+        const enableDeadCatBounceGuard = document.getElementById('chkDeadCatBounceGuard') ? document.getElementById('chkDeadCatBounceGuard').checked : true;
+        const enableMacroRegimeInflection = document.getElementById('chkMacroRegimeInflection') ? document.getElementById('chkMacroRegimeInflection').checked : false;
+        const enableDailyCircuitBreaker = document.getElementById('chkDailyCircuitBreaker') ? document.getElementById('chkDailyCircuitBreaker').checked : false;
+        const enableCPRSqueezeGuard = document.getElementById('chkCPRSqueezeGuard') ? document.getElementById('chkCPRSqueezeGuard').checked : true;
+        const enableUnifiedReclaim = document.getElementById('chkUnifiedReclaim') ? document.getElementById('chkUnifiedReclaim').checked : true;
+        const enableCESpringboard = document.getElementById('chkCESpringboard') ? document.getElementById('chkCESpringboard').checked : true;
+        const enableSpot200EMAGuard = document.getElementById('chkSpot200EMAGuard') ? document.getElementById('chkSpot200EMAGuard').checked : true;
+
+        const res = await fetch(`/api/waterfall/run?dateFilter=2026-10-26,2026-10-27,2026-10-28,2026-10-29,2026-10-30,2026-11-02,2026-11-03,2026-11-04,2026-11-05,2026-11-06,2026-11-09,2026-11-11,2026-11-12,2026-11-13,2026-11-16,2026-11-17,2026-11-18,2026-11-19,2026-11-20,2026-11-23&lotSize=${lotSize}&commission=${commission}&slippage=${slippage}&entryStartTime=${encodeURIComponent(entryStartTime)}&entryEndTime=${encodeURIComponent(entryEndTime)}&strikeMode=${strikeMode}&targetPts=${targetPts}&fixedTarget=${encodeURIComponent(fixedTarget)}&enableDeadCatBounceGuard=${enableDeadCatBounceGuard}&requireHMBullish=${requireHMBullish}&exitOnHMBearish=${exitOnHMBearish}&enableNearCETrail=${enableNearCETrail}&ceNearThreshold=${ceNearThreshold}&filterInsideSellZone=${filterInsideSellZone}&enableSellZoneBreakout=${enableSellZoneBreakout}&breakoutExpiryBars=${breakoutExpiryBars}&enableBreakoutSL=${enableBreakoutSL}&filterInsideBuyZone=${filterInsideBuyZone}&requireHMExitConfirmation=${requireHMExitConfirmation}&enableCERejectionExit=${enableCERejectionExit}&ceRejectionDist=${ceRejectionDist}&entrySignalMode=${encodeURIComponent(entrySignalMode)}&enableRMIBounceEntry=${enableRMIBounceEntry}&enableCEBounceEntry=${enableCEBounceEntry}&enableCEFloorSL=${enableCEFloorSL}&enableRMIFloorExit=${enableRMIFloorExit}&enableRMIRejectionExit=${enableRMIRejectionExit}&enableConfluenceMode=${enableConfluenceMode}&maxZoneWidth=${maxZoneWidth}&zoneRetracementPct=${zoneRetracementPct}&stagnationBars=${stagnationBars}&enableCPRExits=${enableCPRExits}&enableHMVolExit=${enableHMVolExit}&filterFalseRejections=${filterFalseRejections}&enableStrictBull=${enableStrictBull}&enableStrictBear=${enableStrictBear}&enableHammerContinuation=${enableHammerContinuation}&enableCELineBounce=false&enableCandleBTrendBreakout=${enableCandleBTrendBreakout}&maxCandleBTrendSLDist=20&enableCELineWickBreakout=${enableCELineWickBreakout}&maxCELineWickBreakoutSLDist=45&enableNifty9EMAAlignment=${enableNifty9EMAAlignment}&enableCounterBreakoutExit=${enableCounterBreakoutExit}&enableCandleBRMIReclaim=${enableCandleBRMIReclaim}&enableRMISupportHold=${enableRMISupportHold}&rmiSupportHoldThreshold=10&enableCrossStrikeInflection=${enableCrossStrikeInflection}&enableCPRResistanceFilter=${enableCPRResistanceFilter}&enableSpotCPRConflictFilter=${enableSpotCPRConflictFilter}&enableBounceExhaustionFilter=${enableBounceExhaustionFilter}&enableCPRReversalEntry=${enableCPRReversalEntry}&enableDualCeilingFilter=${enableDualCeilingFilter}&enablePivotRetracementQueue=${enablePivotRetracementQueue}&enableRMIReclaimEntry=${enableRMIReclaimEntry}&enableMacroRegimeInflection=${enableMacroRegimeInflection}&enableDailyCircuitBreaker=${enableDailyCircuitBreaker}&enableCPRSqueezeGuard=${enableCPRSqueezeGuard}&enableUnifiedReclaim=${enableUnifiedReclaim}&enableCESpringboard=${enableCESpringboard}&enableSpot200EMAGuard=${enableSpot200EMAGuard}&macroInflectionMaxRisk=20&macroInflectionRRFactor=4&maxCEBounceSLDist=15&sellZoneMinWick=4`);
+        const data = await res.json();
+
+        if (data.status !== 'ok') {
+          alert('Backtest failed: ' + (data.error || 'Unknown error'));
+          return;
+        }
+
+        currentData = data;
+        renderDashboard(data);
+      } catch (e) {
+        console.error('Fetch error:', e);
+        alert('Could not run backtest: ' + e.message);
+      } finally {
+        btnIcon.textContent = '▶';
+        btnLabel.textContent = 'Re-run';
+        btn.disabled = false;
+      }
+    }
+
+    // Render All Elements
+    function renderDashboard(data) {
+      const { summary, legs, daySummary, strikeSummary, equityCurve, trades } = data;
+
+      // 1. KPI Cards
+      const netPnLEl = document.getElementById('valNetPnL');
+      netPnLEl.textContent = fmtINR(summary.totalNetPnL);
+      netPnLEl.className = `kpi-value ${summary.totalNetPnL >= 0 ? 'c-green' : 'c-red'}`;
+      document.getElementById('cardNetPnL').className = `kpi-card ${summary.totalNetPnL >= 0 ? 'highlight-green' : 'highlight-red'}`;
+
+      document.getElementById('valGrossPnL').textContent = fmtINR(summary.totalGrossPnL);
+      document.getElementById('valBrokerage').textContent = `₹${summary.totalCommission.toLocaleString('en-IN')}`;
+
+      // Runner Milestone Cards (25, 30, 50 pts reach)
+      const lot = (currentData && currentData.params && currentData.params.lotSize) ? currentData.params.lotSize : 75;
+      const r25Count = summary.runner25Trades !== undefined ? summary.runner25Trades : (trades ? trades.filter(t => t.is25pointsReached || (t.maxPointsRun >= 25.0)).length : 0);
+      const r30Count = summary.runner30Trades !== undefined ? summary.runner30Trades : (trades ? trades.filter(t => t.is30pointsReached || (t.maxPointsRun >= 30.0)).length : 0);
+      const r50Count = summary.runner50Trades !== undefined ? summary.runner50Trades : (trades ? trades.filter(t => t.is50pointsReached || (t.maxPointsRun >= 50.0)).length : 0);
+      const totTrades = summary.totalTrades || (trades ? trades.length : 1);
+      const r25Pct = summary.runner25Pct !== undefined ? summary.runner25Pct : ((r25Count / totTrades) * 100).toFixed(1);
+      const r30Pct = summary.runner30Pct !== undefined ? summary.runner30Pct : ((r30Count / totTrades) * 100).toFixed(1);
+      const r50Pct = summary.runner50Pct !== undefined ? summary.runner50Pct : ((r50Count / totTrades) * 100).toFixed(1);
+
+      const calcTargetNet = (pts) => {
+        if (!trades || !trades.length) return 0;
+        return trades.reduce((acc, t) => {
+          const reached = (pts === 25 && (t.is25pointsReached || t.maxPointsRun >= 25.0)) ||
+                          (pts === 30 && (t.is30pointsReached || t.maxPointsRun >= 30.0)) ||
+                          (pts === 50 && (t.is50pointsReached || t.maxPointsRun >= 50.0));
+          if (reached) {
+            const comm = t.commission !== undefined ? t.commission : 40;
+            return acc + (pts * lot - comm);
+          }
+          return acc + t.netPnL;
+        }, 0);
+      };
+
+      const r25Profit = summary.runner25NetProfit !== undefined ? summary.runner25NetProfit : (summary.runner25Profit !== undefined ? summary.runner25Profit : calcTargetNet(25));
+      const r30Profit = summary.runner30NetProfit !== undefined ? summary.runner30NetProfit : (summary.runner30Profit !== undefined ? summary.runner30Profit : calcTargetNet(30));
+      const r50Profit = summary.runner50NetProfit !== undefined ? summary.runner50NetProfit : (summary.runner50Profit !== undefined ? summary.runner50Profit : calcTargetNet(50));
+
+      const r25Gross = summary.runner25GrossProfit !== undefined ? summary.runner25GrossProfit : (r25Count * 25.0 * lot);
+      const r30Gross = summary.runner30GrossProfit !== undefined ? summary.runner30GrossProfit : (r30Count * 30.0 * lot);
+      const r50Gross = summary.runner50GrossProfit !== undefined ? summary.runner50GrossProfit : (r50Count * 50.0 * lot);
+
+      const el25Prof = document.getElementById('val25PtsProfit');
+      if (el25Prof) {
+        el25Prof.textContent = fmtINR(r25Profit);
+        el25Prof.className = `kpi-value ${r25Profit >= 0 ? '' : 'c-red'}`;
+        if (r25Profit >= 0) el25Prof.style.color = '#38bdf8';
+      }
+      const el25 = document.getElementById('val25PtsCount');
+      if (el25) el25.textContent = `${r25Count} Trades`;
+      const el25Pct = document.getElementById('val25PtsPct');
+      if (el25Pct) el25Pct.textContent = `${r25Pct}%`;
+      const el25Sub = document.getElementById('val25PtsSub');
+      if (el25Sub) el25Sub.textContent = `Gross: ${fmtINR(r25Gross)}`;
+
+      const el30Prof = document.getElementById('val30PtsProfit');
+      if (el30Prof) {
+        el30Prof.textContent = fmtINR(r30Profit);
+        el30Prof.className = `kpi-value ${r30Profit >= 0 ? '' : 'c-red'}`;
+        if (r30Profit >= 0) el30Prof.style.color = '#a78bfa';
+      }
+      const el30 = document.getElementById('val30PtsCount');
+      if (el30) el30.textContent = `${r30Count} Trades`;
+      const el30Pct = document.getElementById('val30PtsPct');
+      if (el30Pct) el30Pct.textContent = `${r30Pct}%`;
+      const el30Sub = document.getElementById('val30PtsSub');
+      if (el30Sub) el30Sub.textContent = `Gross: ${fmtINR(r30Gross)}`;
+
+      const el50Prof = document.getElementById('val50PtsProfit');
+      if (el50Prof) {
+        el50Prof.textContent = fmtINR(r50Profit);
+        el50Prof.className = `kpi-value ${r50Profit >= 0 ? '' : 'c-red'}`;
+        if (r50Profit >= 0) el50Prof.style.color = '#4ade80';
+      }
+      const el50 = document.getElementById('val50PtsCount');
+      if (el50) el50.textContent = `${r50Count} Trades`;
+      const el50Pct = document.getElementById('val50PtsPct');
+      if (el50Pct) el50Pct.textContent = `${r50Pct}%`;
+      const el50Sub = document.getElementById('val50PtsSub');
+      if (el50Sub) el50Sub.textContent = `Gross: ${fmtINR(r50Gross)}`;
+
+      document.getElementById('valWinRate').textContent = `${summary.winRate}%`;
+      document.getElementById('valWins').textContent = `${summary.winTrades} Wins`;
+      document.getElementById('valLosses').textContent = `${summary.lossTrades} Losses`;
+      document.getElementById('valTotalTrades').textContent = summary.totalTrades;
+
+      document.getElementById('valProfitFactor').textContent = summary.profitFactor.toFixed(2);
+      document.getElementById('valGrossProfit').textContent = `₹${Math.round(summary.grossProfit).toLocaleString('en-IN')}`;
+      document.getElementById('valGrossLoss').textContent = `₹${Math.round(summary.grossLoss).toLocaleString('en-IN')}`;
+
+      document.getElementById('valPayoffRatio').textContent = `${summary.riskReward}x`;
+      document.getElementById('valAvgWin').textContent = `₹${Math.round(summary.avgWin).toLocaleString('en-IN')}`;
+      document.getElementById('valAvgLoss').textContent = `₹${Math.round(summary.avgLoss).toLocaleString('en-IN')}`;
+
+      document.getElementById('valMaxDrawdown').textContent = `-₹${summary.maxDrawdown.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+      document.getElementById('valSkippedCount').textContent = `${summary.skippedTradesCount || 0} Signals`;
+
+      // 2. CE vs PE Summary
+      const cePnLEl = document.getElementById('ceNetPnL');
+      cePnLEl.textContent = fmtINR(legs.CE.netPnL);
+      cePnLEl.className = `leg-pnl ${legs.CE.netPnL >= 0 ? 'c-green' : 'c-red'}`;
+      document.getElementById('ceTrades').textContent = `${legs.CE.trades} (${legs.CE.wins}W / ${legs.CE.losses}L)`;
+      document.getElementById('ceWinRate').textContent = `${legs.CE.winRate}%`;
+      document.getElementById('cePoints').textContent = fmtPts(legs.CE.grossPoints);
+
+      const pePnLEl = document.getElementById('peNetPnL');
+      pePnLEl.textContent = fmtINR(legs.PE.netPnL);
+      pePnLEl.className = `leg-pnl ${legs.PE.netPnL >= 0 ? 'c-green' : 'c-red'}`;
+      document.getElementById('peTrades').textContent = `${legs.PE.trades} (${legs.PE.wins}W / ${legs.PE.losses}L)`;
+      document.getElementById('peWinRate').textContent = `${legs.PE.winRate}%`;
+      document.getElementById('pePoints').textContent = fmtPts(legs.PE.grossPoints);
+
+      // 3. Day Cards
+      renderDayCards(daySummary, trades);
+
+      // 4. Equity Chart
+      renderEquityChart(equityCurve);
+
+      // 5. Strike Performance Matrix
+      renderStrikeMatrix(strikeSummary);
+
+      // 6. Trade Log Table (Uses unified signals list: executed + skipped)
+      const signalList = (data.allSignals && data.allSignals.length) ? data.allSignals : (trades || []);
+      populateReasoningDropdown(signalList);
+      renderTradeTable(signalList);
+    }
+
+    // Render Day-by-Day Cards
+    function renderDayCards(daySummary, trades) {
+      const container = document.getElementById('dayCardsContainer');
+      container.innerHTML = '';
+
+      const lot = parseFloat(document.getElementById('inpLotSize')?.value) || 75;
+
+      Object.values(daySummary).forEach(d => {
+        const isProfit = d.totalNetPnL >= 0;
+
+        const dTrades = (trades || []).filter(t => t.day === d.day);
+
+        const calcDayTargetNet = (pts) => {
+          return dTrades.reduce((acc, t) => {
+            const reached = (pts === 25 && (t.is25pointsReached || t.maxPointsRun >= 25.0)) ||
+                            (pts === 30 && (t.is30pointsReached || t.maxPointsRun >= 30.0)) ||
+                            (pts === 50 && (t.is50pointsReached || t.maxPointsRun >= 50.0));
+            if (reached) {
+              const comm = t.commission !== undefined ? t.commission : 40;
+              return acc + (pts * lot - comm);
+            }
+            return acc + t.netPnL;
+          }, 0);
+        };
+
+        const r25Trades = d.runner25Trades !== undefined ? d.runner25Trades : dTrades.filter(t => t.is25pointsReached || (t.maxPointsRun >= 25.0)).length;
+        const target25Net = d.target25NetPnL !== undefined ? d.target25NetPnL : calcDayTargetNet(25);
+
+        const r30Trades = d.runner30Trades !== undefined ? d.runner30Trades : dTrades.filter(t => t.is30pointsReached || (t.maxPointsRun >= 30.0)).length;
+        const target30Net = d.target30NetPnL !== undefined ? d.target30NetPnL : calcDayTargetNet(30);
+
+        const r50Trades = d.runner50Trades !== undefined ? d.runner50Trades : dTrades.filter(t => t.is50pointsReached || (t.maxPointsRun >= 50.0)).length;
+        const target50Net = d.target50NetPnL !== undefined ? d.target50NetPnL : calcDayTargetNet(50);
+
+        const card = document.createElement('div');
+        card.className = 'day-card';
+        card.innerHTML = `
+          <div class="day-header">
+            <div>
+              <div class="day-title">${d.label}</div>
+              <div style="font-size:10px; color:var(--text-muted); font-family:var(--mono); margin-top:2px;">
+                Nifty Open: <strong>${d.niftyOpen.toLocaleString()}</strong> (Ref: <strong>${d.refStrike}</strong>)
+              </div>
+            </div>
+            <div class="day-pnl-pill ${isProfit ? 'win' : 'loss'}">
+              ${fmtINR(d.totalNetPnL)}
+            </div>
+          </div>
+
+          <div class="day-info-row">
+            <span class="day-info-label">Trades / Win Rate:</span>
+            <span class="day-info-val">${d.trades} trades • <span class="${d.winRate >= 40 ? 'c-green' : 'c-amber'}">${d.winRate}%</span></span>
+          </div>
+
+          <div class="day-info-row">
+            <span class="day-info-label">CE Leg P&L:</span>
+            <span class="day-info-val ${d.ceNetPnL >= 0 ? 'c-green' : 'c-red'}">${fmtINR(d.ceNetPnL)}</span>
+          </div>
+
+          <div class="day-info-row">
+            <span class="day-info-label">PE Leg P&L:</span>
+            <span class="day-info-val ${d.peNetPnL >= 0 ? 'c-green' : 'c-red'}">${fmtINR(d.peNetPnL)}</span>
+          </div>
+
+          <div class="strikes-tags">
+            ${d.ceStrikes.map(s => `<span class="strike-tag ce">🟢 ${s}</span>`).join('')}
+            ${d.peStrikes.map(s => `<span class="strike-tag pe">🔴 ${s}</span>`).join('')}
+          </div>
+
+          <div style="margin-top:9px; padding-top:8px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:4px;">
+            <div class="day-info-row" style="margin-bottom:0; font-size:11px;">
+              <span class="day-info-label" style="color:#38bdf8; font-weight:600; display:flex; align-items:center; gap:3px;">
+                <span>🎯 25 Pts Net:</span>
+              </span>
+              <span class="day-info-val ${target25Net >= 0 ? 'c-green' : 'c-red'}" style="font-weight:700;">
+                ${fmtINR(target25Net)} <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(${r25Trades}/${d.trades} hits)</span>
+              </span>
+            </div>
+            <div class="day-info-row" style="margin-bottom:0; font-size:11px;">
+              <span class="day-info-label" style="color:#a78bfa; font-weight:600; display:flex; align-items:center; gap:3px;">
+                <span>🚀 30 Pts Net:</span>
+              </span>
+              <span class="day-info-val ${target30Net >= 0 ? 'c-green' : 'c-red'}" style="font-weight:700;">
+                ${fmtINR(target30Net)} <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(${r30Trades}/${d.trades} hits)</span>
+              </span>
+            </div>
+            <div class="day-info-row" style="margin-bottom:0; font-size:11px;">
+              <span class="day-info-label" style="color:#4ade80; font-weight:600; display:flex; align-items:center; gap:3px;">
+                <span>🏆 50 Pts Net:</span>
+              </span>
+              <span class="day-info-val ${target50Net >= 0 ? 'c-green' : 'c-red'}" style="font-weight:700;">
+                ${fmtINR(target50Net)} <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(${r50Trades}/${d.trades} hits)</span>
+              </span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Render Interactive Equity Curve Chart
+    function renderEquityChart(equityCurve) {
+      const ctx = document.getElementById('equityChart').getContext('2d');
+
+      const labels = equityCurve.map(pt => {
+        if (pt.tradeNum === 0) return 'Start';
+        return formatShortDateTime(pt.exitTime || pt.time);
+      });
+      const dataPoints = equityCurve.map(pt => pt.cumulativeNet);
+
+      if (equityChartInstance) {
+        equityChartInstance.destroy();
+      }
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+      gradient.addColorStop(0, 'rgba(34, 197, 94, 0.35)');
+      gradient.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+
+      equityChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Cumulative Net P&L (₹)',
+            data: dataPoints,
+            borderColor: '#22c55e',
+            borderWidth: 2.2,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.25,
+            pointRadius: (ctx) => (ctx.dataIndex % 5 === 0 || ctx.dataIndex === labels.length - 1 ? 3 : 0),
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#22c55e'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0c1526',
+              titleColor: '#e2e8f0',
+              bodyColor: '#8496b0',
+              borderColor: '#1c2e4a',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: false,
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0].dataIndex;
+                  const pt = equityCurve[idx];
+                  return pt.tradeNum === 0 ? 'Backtest Start' : `Trade #${pt.tradeNum} — ${pt.strike} (${pt.side})`;
+                },
+                label: (item) => {
+                  const pt = equityCurve[item.dataIndex];
+                  if (pt.tradeNum === 0) return 'Cumulative Equity: ₹0.00';
+                  return [
+                    `📅 Date & Time: ${formatDateTime(pt.exitTime || pt.time)}`,
+                    `⏱️ Trade Net P&L: ${fmtINR(pt.netPnL)}`,
+                    `💰 Cumulative Net: ₹${item.raw.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+                    `📉 Drawdown: -₹${(pt.drawdown || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(28, 46, 74, 0.4)' },
+              ticks: {
+                color: '#8496b0',
+                font: { family: "'JetBrains Mono', monospace", size: 9 },
+                maxTicksLimit: 8,
+                maxRotation: 0,
+                minRotation: 0
+              }
+            },
+            y: {
+              grid: { color: 'rgba(28, 46, 74, 0.4)' },
+              ticks: {
+                color: '#8496b0',
+                font: { family: "'JetBrains Mono', monospace", size: 11 },
+                callback: (val) => '₹' + (val >= 1000 || val <= -1000 ? (val / 1000).toFixed(1) + 'k' : val)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Render Strike Matrix
+    function renderStrikeMatrix(strikeSummary) {
+      const tbody = document.getElementById('strikeMatrixBody');
+      tbody.innerHTML = '';
+
+      strikeSummary.forEach(s => {
+        const isWin = s.netPnL >= 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span style="font-weight:700; color:var(--text);">${formatDateOnly(s.day)}</span> <span style="font-size:10px; color:var(--text-muted); font-family:var(--mono);">(${s.day})</span></td>
+          <td><span class="${s.side === 'CE' ? 'badge-side-ce' : 'badge-side-pe'}">${s.side}</span></td>
+          <td style="font-weight:700;">${s.strike}</td>
+          <td>${s.trades}</td>
+          <td>${s.wins}</td>
+          <td><span class="${s.winRate >= 40 ? 'c-green' : 'c-amber'}">${s.winRate}%</span></td>
+          <td class="${s.points >= 0 ? 'c-green' : 'c-red'}">${fmtPts(s.points)}</td>
+          <td class="${isWin ? 'c-green' : 'c-red'}" style="font-weight:700;">${fmtINR(s.netPnL)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Populate Reasoning Filter Dropdown
+    function populateReasoningDropdown(signals) {
+      const sel = document.getElementById('selReasoningFilter');
+      if (!sel || !signals) return;
+
+      const prevVal = filterReasoning;
+
+      const entryCounts = {};
+      const skipCounts = {};
+
+      signals.forEach(s => {
+        if (s.status === 'EXECUTED' && s.reasonShort) {
+          entryCounts[s.reasonShort] = (entryCounts[s.reasonShort] || 0) + 1;
+        } else if (s.status === 'SKIPPED' && s.skipReason) {
+          let cat = s.skipReason.split(':')[0].trim();
+          if (cat.includes('Buy Zone Width')) cat = 'Buy Zone Width Exceeded';
+          skipCounts[cat] = (skipCounts[cat] || 0) + 1;
+        }
+      });
+
+      const sortedEntries = Object.entries(entryCounts).sort((a, b) => b[1] - a[1]);
+      const sortedSkips = Object.entries(skipCounts).sort((a, b) => b[1] - a[1]);
+
+      let html = `<option value="ALL">All Reasonings (${signals.length} Signals)</option>`;
+
+      if (sortedEntries.length > 0) {
+        html += `<optgroup label="💡 Executed Trade Setups (${sortedEntries.reduce((a,b)=>a+b[1],0)})">`;
+        sortedEntries.forEach(([reason, count]) => {
+          html += `<option value="${reason}">${reason} (${count})</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      if (sortedSkips.length > 0) {
+        html += `<optgroup label="🛑 Skipped Signal Audits (${sortedSkips.reduce((a,b)=>a+b[1],0)})">`;
+        sortedSkips.forEach(([cat, count]) => {
+          html += `<option value="${cat}">${cat} (${count})</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      sel.innerHTML = html;
+
+      // Restore previous selection if it still exists
+      const exists = Array.from(sel.options).some(o => o.value === prevVal);
+      if (exists) {
+        sel.value = prevVal;
+        filterReasoning = prevVal;
+      } else {
+        sel.value = 'ALL';
+        filterReasoning = 'ALL';
+      }
+    }
+
+    // Filter & Render Trade Log Table (Supports both Executed and Skipped Signals)
+    function renderTradeTable(signals) {
+      if (!signals) return;
+      const tbody = document.getElementById('tradeTableBody');
+      tbody.innerHTML = '';
+
+      let filtered = signals.filter(s => {
+        if (filterDay !== 'ALL' && s.day !== filterDay) return false;
+        if (filterSide !== 'ALL' && s.side !== filterSide) return false;
+        if (filterStatus === 'EXECUTED' && s.status !== 'EXECUTED') return false;
+        if (filterStatus === 'SKIPPED' && s.status !== 'SKIPPED') return false;
+        if (filterRes === 'WIN' && (s.status === 'SKIPPED' || (s.netPnL || 0) <= 0)) return false;
+        if (filterRes === 'LOSS' && (s.status === 'SKIPPED' || (s.netPnL || 0) >= 0)) return false;
+        if (filterSetup === 'CONFLUENCE' && !s.isConfluenceTrade) return false;
+        if (filterSetup === 'CE_BOUNCE' && !s.isCEBounceEntry) return false;
+        if (filterSetup === 'RMI_BOUNCE' && !s.isRMIBounceEntry) return false;
+        if (filterSetup === 'BREAKOUT' && !s.isBreakoutEntry) return false;
+        if (filterSetup === 'EMA' && (s.isCEBounceEntry || s.isRMIBounceEntry || s.isBreakoutEntry || s.isConfluenceTrade)) return false;
+        if (filterReasoning !== 'ALL') {
+          const isEntryMatch = s.reasonShort === filterReasoning || (s.reasonShort && s.reasonShort.toLowerCase().includes(filterReasoning.toLowerCase()));
+          const isSkipMatch = s.skipReason && s.skipReason.toLowerCase().includes(filterReasoning.toLowerCase());
+          if (!isEntryMatch && !isSkipMatch) return false;
+        }
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const match = (s.strike && s.strike.toLowerCase().includes(q)) ||
+            (s.entryTime && s.entryTime.toLowerCase().includes(q)) ||
+            (s.exitReason && s.exitReason.toLowerCase().includes(q)) ||
+            (s.reasonShort && s.reasonShort.toLowerCase().includes(q)) ||
+            (s.skipReason && s.skipReason.toLowerCase().includes(q));
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      const execCount = filtered.filter(s => s.status === 'EXECUTED').length;
+      const skipCount = filtered.filter(s => s.status === 'SKIPPED').length;
+      const runners25Count = filtered.filter(s => s.status === 'EXECUTED' && s.is25pointsReached).length;
+      const runners30Count = filtered.filter(s => s.status === 'EXECUTED' && s.is30pointsReached).length;
+      const runners50Count = filtered.filter(s => s.status === 'EXECUTED' && s.is50pointsReached).length;
+      document.getElementById('tradeLogCount').textContent = `${filtered.length} of ${signals.length} Signals (${execCount} Executed • ${skipCount} Skipped • 🎯 ${runners25Count} ≥+25pts • 🚀 ${runners30Count} ≥+30pts • 🏆 ${runners50Count} ≥+50pts)`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="18" class="empty-state">No signals match the active filters.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach((s, idx) => {
+        const isExecuted = (s.status === 'EXECUTED');
+        const isWin = isExecuted && (s.netPnL > 0);
+        const tr = document.createElement('tr');
+        if (!isExecuted) {
+          tr.className = 'row-skipped';
+        }
+
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>
+            ${isExecuted
+            ? `<span class="badge-status-executed">✓ Executed</span>`
+            : `<span class="badge-status-skipped" title="${s.skipReason ? s.skipReason.replace(/"/g, '&quot;') : 'Blocked by filter'}">🚫 Skipped</span>`}
+          </td>
+          <td>
+            <div style="font-weight:700; color:var(--text);">${formatDateOnly(s.day)}</div>
+            <div style="font-size:10px; color:var(--text-muted); font-family:var(--mono);">
+              ${s.entryTime ? s.entryTime.substring(11, 16) : ''}${s.exitTime && isExecuted ? ` - ${s.exitTime.substring(11, 16)}` : ''}
+            </div>
+          </td>
+          <td><span class="${s.side === 'CE' ? 'badge-side-ce' : 'badge-side-pe'}">${s.side}</span></td>
+          <td style="font-weight:700;">
+            ${s.strike}
+            ${s.isConfluenceTrade ? `<span class="badge-near-ce" style="background:rgba(56,189,248,0.18); color:#38bdf8; border:1px solid rgba(56,189,248,0.4);" title="Sep 30 3-Chart Confluence Setup">🧩 Confluence</span>` : ''}
+            ${s.isNearCE ? `<span class="badge-near-ce" title="Formed within ${s.ceDist} pts of Chandelier Line (${s.ceLine})">🎯 Near-CE (${s.ceDist}pt)</span>` : ''}
+            ${s.isBreakoutEntry ? `<span class="badge-near-ce" style="background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.4);" title="Re-entered on Sell Zone Breakout from blocked ${s.breakoutOrigTime || ''} signal">🚀 Breakout</span>` : ''}
+            ${s.isCEBounceEntry ? `<span class="badge-near-ce" style="background:rgba(6,182,212,0.18); color:#06b6d4; border:1px solid rgba(6,182,212,0.4);" title="CE Pullback Floor Bounce Entry (CE Floor: ₹${s.ceFloorAtEntry ? s.ceFloorAtEntry.toFixed(1) : ''})">🎯 CE Bounce</span>` : ''}
+            ${s.isRMIBounceEntry ? `<span class="badge-near-ce" style="background:rgba(139,92,246,0.18); color:#a78bfa; border:1px solid rgba(139,92,246,0.4);" title="RMI 2-Bar Support Bounce Entry (RMI: ₹${s.rmiCenterAtEntry ? s.rmiCenterAtEntry.toFixed(1) : ''})">📐 RMI Bounce</span>` : ''}
+            ${s.isCandleBAlignmentTrade ? `<span class="badge-near-ce" style="background:rgba(16,185,129,0.18); color:#10b981; border:1px solid rgba(16,185,129,0.4);" title="Candle B Multi-Chart Trend Breakout Entry">⚡ Trend Breakout</span>` : ''}
+          </td>
+          <td>
+            <div style="font-weight:700; color:var(--text);">${formatTimeOnly(s.entryTime)}</div>
+            <div style="font-size:10px; color:var(--text-muted); font-family:var(--mono);">${formatDateOnly(s.day)}</div>
+          </td>
+          <td>${s.entryPrice !== null && s.entryPrice !== undefined ? s.entryPrice.toFixed(2) : '—'}</td>
+          <td>
+            ${isExecuted
+            ? `<div style="font-weight:700; color:var(--text);">${formatTimeOnly(s.exitTime)}</div>
+                 <div style="font-size:10px; color:var(--text-muted); font-family:var(--mono);">${formatDateOnly(s.day)}</div>`
+            : `<span style="color:var(--text-muted); font-size:11px;">—</span>`}
+          </td>
+          <td>${isExecuted && s.exitPrice !== null && s.exitPrice !== undefined ? s.exitPrice.toFixed(2) : '<span style="color:var(--text-muted);">—</span>'}</td>
+          <td>
+            <span style="font-size:11px; ${isExecuted ? 'color:var(--text-muted);' : 'color:#fbbf24; font-weight:600;'}">
+              ${s.exitReason || s.skipReason || '—'}
+            </span>
+          </td>
+          <td class="${isExecuted ? (s.grossPoints >= 0 ? 'c-green' : 'c-red') : ''}">
+            ${isExecuted && s.grossPoints !== null ? fmtPts(s.grossPoints) : '<span style="color:var(--text-muted);">—</span>'}
+          </td>
+          <td style="text-align:center;">
+            ${isExecuted
+              ? (s.is25pointsReached
+                  ? `<span class="badge-win" style="display:inline-flex; align-items:center; gap:4px; font-weight:700; padding:2px 7px; border-radius:4px; font-size:11px;" title="Peak High: ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} (+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts)">
+                      <span>✅ Yes</span> <span style="font-size:10px; opacity:0.85; font-family:var(--mono);">(+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0})</span>
+                     </span>`
+                  : `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-muted); padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.03);" title="Peak High: ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} (+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts)">
+                      <span style="color:#ef4444; opacity:0.8;">❌ No</span> <span style="font-size:10px; font-family:var(--mono); color:var(--text-muted);">(+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0})</span>
+                     </span>`
+                )
+              : `<span style="color:var(--text-muted);">—</span>`
+            }
+          </td>
+          <td style="text-align:center;">
+            ${isExecuted
+              ? (s.is30pointsReached
+                  ? `<span class="badge-win" style="display:inline-flex; align-items:center; gap:4px; font-weight:700; padding:2px 7px; border-radius:4px; font-size:11px;" title="Peak High: ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} (+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts)">
+                      <span>✅ Yes</span> <span style="font-size:10px; opacity:0.85; font-family:var(--mono);">(+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0})</span>
+                     </span>`
+                  : `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-muted); padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.03);" title="Peak High: ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} (+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts)">
+                      <span style="color:#ef4444; opacity:0.8;">❌ No</span> <span style="font-size:10px; font-family:var(--mono); color:var(--text-muted);">(+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0})</span>
+                     </span>`
+                )
+              : `<span style="color:var(--text-muted);">—</span>`
+            }
+          </td>
+          <td style="text-align:center;">
+            ${isExecuted
+              ? (s.is50pointsReached
+                  ? `<span class="badge-win" style="display:inline-flex; align-items:center; gap:4px; font-weight:700; padding:2px 7px; border-radius:4px; font-size:11px;" title="Peak High: ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} (+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts)">
+                      <span>✅ Yes</span> <span style="font-size:10px; opacity:0.85; font-family:var(--mono);">(+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0})</span>
+                     </span>`
+                  : `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-muted); padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.03);" title="Peak High: ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} (+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts)">
+                      <span style="color:#ef4444; opacity:0.8;">❌ No</span> <span style="font-size:10px; font-family:var(--mono); color:var(--text-muted);">(+${s.maxPointsRun !== undefined ? s.maxPointsRun : 0})</span>
+                     </span>`
+                )
+              : `<span style="color:var(--text-muted);">—</span>`
+            }
+          </td>
+          <td>
+            ${isExecuted && s.netPnL !== null
+              ? `<span class="${isWin ? 'badge-win' : 'badge-loss'}">${fmtINR(s.netPnL)}</span>`
+              : `<span style="font-size:11px; color:#fbbf24; font-family:var(--mono);">Filtered (₹0)</span>`}
+          </td>
+          <td>${isExecuted ? `${s.durationMinutes}m (${s.barsHeld}b)` : '—'}</td>
+          <td style="font-weight:700;" class="${isExecuted && s.cumulativeNet !== null ? (s.cumulativeNet >= 0 ? 'c-green' : 'c-red') : ''}">
+            ${isExecuted && s.cumulativeNet !== null ? fmtINR(s.cumulativeNet) : '—'}
+          </td>
+          <td class="reason-cell">
+            <span class="reason-pill ${isExecuted ? '' : 'skipped'}" title="Click to view full structured reasoning">
+              ${isExecuted ? '💡' : '🛑'} ${s.reasonShort || s.skipReason || 'Signal'}
+            </span>
+          </td>
+        `;
+
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', () => {
+          showReasoningModal(s);
+        });
+
+        const pill = tr.querySelector('.reason-pill');
+        if (pill) {
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showReasoningModal(s);
+          });
+        }
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Show Structured Reasoning Modal
+    function showReasoningModal(s) {
+      if (!s) return;
+      const modal = document.getElementById('reasoningModal');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
+
+      const isExecuted = (s.status === 'EXECUTED');
+      const isWin = isExecuted && (s.netPnL > 0);
+
+      let setupBadge = '';
+      if (s.reasonShort && s.reasonShort.includes('Setup 17')) setupBadge = '<span class="badge-near-ce" style="background:rgba(6,182,212,0.18); color:#06b6d4; border:1px solid rgba(6,182,212,0.4);">🚀 CE Line Breakout (Setup 17)</span>';
+      else if (s.reasonShort === 'Macro Regime Inflection Reversal' || s.isSetup16Trade) setupBadge = '<span class="badge-near-ce" style="background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.4);">🔄 Macro Regime Inflection (Setup 16)</span>';
+      else if (s.reasonShort === 'CPR R3 Support Reclaim & Breakout' || s.reasonShort === 'CPR S3 Breakdown & Momentum Entry') setupBadge = '<span class="badge-near-ce" style="background:rgba(168,85,247,0.18); color:#c084fc; border:1px solid rgba(168,85,247,0.4);">📊 CPR S3/R3 Reclaim (Setup 15)</span>';
+      else if (s.isConfluenceTrade) setupBadge = '<span class="badge-near-ce" style="background:rgba(56,189,248,0.18); color:#38bdf8; border:1px solid rgba(56,189,248,0.4);">🧩 3-Chart Confluence Setup</span>';
+      else if (s.isCEBounceEntry) setupBadge = '<span class="badge-near-ce" style="background:rgba(6,182,212,0.18); color:#06b6d4; border:1px solid rgba(6,182,212,0.4);">🎯 CE Pullback Floor Bounce</span>';
+      else if (s.isRMIBounceEntry) setupBadge = '<span class="badge-near-ce" style="background:rgba(139,92,246,0.18); color:#a78bfa; border:1px solid rgba(139,92,246,0.4);">📐 RMI Support Bounce</span>';
+      else if (s.isBreakoutEntry) setupBadge = '<span class="badge-near-ce" style="background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.4);">🚀 Sell Zone Breakout</span>';
+      else if (s.isCandleBAlignmentTrade) setupBadge = '<span class="badge-near-ce" style="background:rgba(16,185,129,0.18); color:#10b981; border:1px solid rgba(16,185,129,0.4);">⚡ Candle B Trend Breakout</span>';
+      else setupBadge = '<span class="badge-near-ce" style="background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.4);">⚡ 9 EMA Long Signal</span>';
+
+      title.innerHTML = `
+        <span>${isExecuted ? '💡' : '🛑'} ${s.id || ''} — ${s.strike} (${s.day})</span>
+        ${setupBadge}
+      `;
+
+      if (s.reasonShort) {
+        const filterBtn = document.createElement('button');
+        filterBtn.className = 'filter-btn';
+        filterBtn.style.cssText = 'background:rgba(59,130,246,0.18); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); font-size:11px; padding:3px 8px; cursor:pointer; margin-left:auto; display:inline-flex; align-items:center; gap:4px;';
+        filterBtn.innerHTML = `<span>🔍 Filter: ${s.reasonShort}</span>`;
+        filterBtn.addEventListener('click', () => {
+          filterReasoning = s.reasonShort;
+          const sel = document.getElementById('selReasoningFilter');
+          if (sel) sel.value = s.reasonShort;
+          closeModal();
+          if (currentData) {
+            const list = (currentData.allSignals && currentData.allSignals.length) ? currentData.allSignals : currentData.trades;
+            renderTradeTable(list);
+          }
+        });
+        title.appendChild(filterBtn);
+      }
+
+      const reasonBullets = (s.reasoning || s.reasonShort || s.skipReason || 'No details')
+        .split(' • ')
+        .map(b => b.trim())
+        .filter(Boolean);
+
+      body.innerHTML = `
+        <div class="reason-meta-grid">
+          <div class="reason-meta-item">
+            <div class="reason-meta-lbl">Status</div>
+            <div class="reason-meta-val" style="color:${isExecuted ? '#4ade80' : '#fbbf24'};">${s.status || 'EXECUTED'}</div>
+          </div>
+          <div class="reason-meta-item">
+            <div class="reason-meta-lbl">Strike / Leg</div>
+            <div class="reason-meta-val">${s.strike} (${s.side})</div>
+          </div>
+          <div class="reason-meta-item">
+            <div class="reason-meta-lbl">Entry Time & Price</div>
+            <div class="reason-meta-val">${formatTimeOnly(s.entryTime)} @ ₹${s.entryPrice ? s.entryPrice.toFixed(2) : '—'}</div>
+          </div>
+          <div class="reason-meta-item">
+            <div class="reason-meta-lbl">${isExecuted ? 'Exit Time & Price' : 'Filter Reason'}</div>
+            <div class="reason-meta-val">${isExecuted ? `${formatTimeOnly(s.exitTime)} @ ₹${s.exitPrice ? s.exitPrice.toFixed(2) : '—'}` : (s.reasonShort || 'Blocked')}</div>
+          </div>
+          ${isExecuted ? `
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">Points Captured</div>
+              <div class="reason-meta-val" style="color:${s.grossPoints >= 0 ? '#4ade80' : '#f87171'};">${fmtPts(s.grossPoints)}</div>
+            </div>
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">Net P&L</div>
+              <div class="reason-meta-val" style="color:${isWin ? '#4ade80' : '#f87171'};">${fmtINR(s.netPnL)}</div>
+            </div>
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">Exit Reason</div>
+              <div class="reason-meta-val" style="font-size:11px; color:#cbd5e1;">${s.exitReason || '—'}</div>
+            </div>
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">Holding Period</div>
+              <div class="reason-meta-val">${s.durationMinutes}m (${s.barsHeld} bars)</div>
+            </div>
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">25 Pts Reached?</div>
+              <div class="reason-meta-val" style="color:${s.is25pointsReached ? '#4ade80' : '#cbd5e1'}; font-weight:700;">
+                ${s.is25pointsReached ? '✅ Yes' : '❌ No'} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(Peak ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} [${s.maxPointsRun >= 0 ? '+' : ''}${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts])</span>
+              </div>
+            </div>
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">30 Pts Reached?</div>
+              <div class="reason-meta-val" style="color:${s.is30pointsReached ? '#4ade80' : '#cbd5e1'}; font-weight:700;">
+                ${s.is30pointsReached ? '✅ Yes' : '❌ No'} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(Peak ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} [${s.maxPointsRun >= 0 ? '+' : ''}${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts])</span>
+              </div>
+            </div>
+            <div class="reason-meta-item">
+              <div class="reason-meta-lbl">50 Pts Reached?</div>
+              <div class="reason-meta-val" style="color:${s.is50pointsReached ? '#4ade80' : '#cbd5e1'}; font-weight:700;">
+                ${s.is50pointsReached ? '✅ Yes' : '❌ No'} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(Peak ₹${s.peakHigh ? s.peakHigh.toFixed(2) : '—'} [${s.maxPointsRun >= 0 ? '+' : ''}${s.maxPointsRun !== undefined ? s.maxPointsRun : 0} pts])</span>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="reason-box">
+          <div class="reason-box-title">
+            <span>📋 Complete Strategy Reasoning & Execution Notes</span>
+          </div>
+          <div class="reason-box-content">
+            <ul style="margin:0; padding-left:18px; display:flex; flex-direction:column; gap:8px;">
+              ${reasonBullets.map(bullet => `<li>${bullet}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('reasoningModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    // CSV Export
+    function exportToCSV() {
+      if (!currentData) return;
+      const list = (currentData.allSignals && currentData.allSignals.length) ? currentData.allSignals : (currentData.trades || []);
+      const headers = ['SignalNo', 'Status', 'Date', 'Side', 'Strike', 'IsNearCE', 'CEDistance', 'EntryDateTime', 'EntryPrice', 'ExitDateTime', 'ExitPrice', 'ExitReason_Or_SkipReason', 'GrossPoints', 'GrossPnL', 'Commission', 'NetPnL', 'BarsHeld', 'CumulativeNet', 'Reasoning'];
+      const rows = list.map((t, idx) => [
+        t.tradeNo || (idx + 1),
+        t.status || 'EXECUTED',
+        t.day,
+        t.side,
+        t.strike,
+        t.isNearCE ? 'YES' : 'NO',
+        t.ceDist !== null && t.ceDist !== undefined ? t.ceDist : '',
+        formatDateTime(t.entryTime),
+        t.entryPrice !== null && t.entryPrice !== undefined ? t.entryPrice : '',
+        t.exitTime ? formatDateTime(t.exitTime) : '',
+        t.exitPrice !== null && t.exitPrice !== undefined ? t.exitPrice : '',
+        `"${(t.exitReason || t.skipReason || '').replace(/"/g, '""')}"`,
+        t.grossPoints !== null && t.grossPoints !== undefined ? t.grossPoints : '',
+        t.grossPnL !== null && t.grossPnL !== undefined ? t.grossPnL : '',
+        t.commission || 0,
+        t.netPnL !== null && t.netPnL !== undefined ? t.netPnL : '',
+        t.barsHeld || 0,
+        t.cumulativeNet !== null && t.cumulativeNet !== undefined ? t.cumulativeNet : '',
+        `"${(t.reasoning || t.reasonShort || t.skipReason || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', 'waterfall_backtest_trades.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Setup Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      // Run Button
+      document.getElementById('btnRunBacktest').addEventListener('click', fetchBacktest);
+
+      // Export Button
+      document.getElementById('btnExportCSV').addEventListener('click', exportToCSV);
+
+      // Filter Buttons
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const type = e.target.dataset.filter;
+          const val = e.target.dataset.val;
+
+          // Toggle active class in group
+          e.target.parentElement.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+
+          if (type === 'day') filterDay = val;
+          if (type === 'side') filterSide = val;
+          if (type === 'setup') filterSetup = val;
+          if (type === 'res') filterRes = val;
+          if (type === 'status') filterStatus = val;
+
+          if (currentData) {
+            const list = (currentData.allSignals && currentData.allSignals.length) ? currentData.allSignals : currentData.trades;
+            renderTradeTable(list);
+          }
+        });
+      });
+
+      // Search Input
+      document.getElementById('inpSearch').addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        if (currentData) {
+          const list = (currentData.allSignals && currentData.allSignals.length) ? currentData.allSignals : currentData.trades;
+          renderTradeTable(list);
+        }
+      });
+
+      // Reasoning Filter Dropdown
+      const selReasoning = document.getElementById('selReasoningFilter');
+      if (selReasoning) {
+        selReasoning.addEventListener('change', (e) => {
+          filterReasoning = e.target.value;
+
+          // If user picked a specific Executed setup while status is SKIPPED, or vice versa, auto-adjust status to ALL for seamless UX
+          if (filterReasoning !== 'ALL') {
+            const isSkipOpt = e.target.selectedOptions[0] && e.target.selectedOptions[0].parentElement && e.target.selectedOptions[0].parentElement.label && e.target.selectedOptions[0].parentElement.label.includes('Skipped');
+            if (isSkipOpt && filterStatus === 'EXECUTED') {
+              filterStatus = 'ALL';
+              document.querySelectorAll('[data-filter="status"]').forEach(b => {
+                b.classList.toggle('active', b.dataset.val === 'ALL');
+              });
+            } else if (!isSkipOpt && filterStatus === 'SKIPPED') {
+              filterStatus = 'ALL';
+              document.querySelectorAll('[data-filter="status"]').forEach(b => {
+                b.classList.toggle('active', b.dataset.val === 'ALL');
+              });
+            }
+          }
+
+          if (currentData) {
+            const list = (currentData.allSignals && currentData.allSignals.length) ? currentData.allSignals : currentData.trades;
+            renderTradeTable(list);
+          }
+        });
+      }
+
+      // Strike Mode selector change
+      const strikeModeEl = document.getElementById('selStrikeMode');
+      if (strikeModeEl) {
+        strikeModeEl.addEventListener('change', fetchBacktest);
+      }
+      const entrySignalModeEl = document.getElementById('selEntrySignalMode');
+      if (entrySignalModeEl) {
+        entrySignalModeEl.addEventListener('change', fetchBacktest);
+      }
+
+      // HM Bullish Filter checkbox change
+      const chkRequireHMEl = document.getElementById('chkRequireHM');
+      if (chkRequireHMEl) {
+        chkRequireHMEl.addEventListener('change', fetchBacktest);
+      }
+
+      // HM Bearish Exit checkbox change
+      const chkExitHMBearishEl = document.getElementById('chkExitHMBearish');
+      if (chkExitHMBearishEl) {
+        chkExitHMBearishEl.addEventListener('change', fetchBacktest);
+      }
+
+      // Near-CE Low Trail checkbox & threshold change
+      const chkNearCETrailEl = document.getElementById('chkNearCETrail');
+      if (chkNearCETrailEl) {
+        chkNearCETrailEl.addEventListener('change', fetchBacktest);
+      }
+      const inpCEThresholdEl = document.getElementById('inpCEThreshold');
+      if (inpCEThresholdEl) {
+        inpCEThresholdEl.addEventListener('change', fetchBacktest);
+      }
+
+      // Filter Sell Zone checkbox change
+      const chkFilterSellZoneEl = document.getElementById('chkFilterSellZone');
+      if (chkFilterSellZoneEl) {
+        chkFilterSellZoneEl.addEventListener('change', fetchBacktest);
+      }
+
+      // Breakout Re-entry checkbox & expiry input change
+      const chkSellZoneBreakoutEl = document.getElementById('chkSellZoneBreakout');
+      if (chkSellZoneBreakoutEl) {
+        chkSellZoneBreakoutEl.addEventListener('change', fetchBacktest);
+      }
+      const inpBreakoutExpiryEl = document.getElementById('inpBreakoutExpiry');
+      if (inpBreakoutExpiryEl) {
+        inpBreakoutExpiryEl.addEventListener('change', fetchBacktest);
+      }
+
+      // Breakout SL checkbox change
+      const chkBreakoutSLEl = document.getElementById('chkBreakoutSL');
+      if (chkBreakoutSLEl) {
+        chkBreakoutSLEl.addEventListener('change', fetchBacktest);
+      }
+
+      // Filter Buy Zone checkbox change
+      const chkFilterBuyZoneEl = document.getElementById('chkFilterBuyZone');
+      if (chkFilterBuyZoneEl) {
+        chkFilterBuyZoneEl.addEventListener('change', fetchBacktest);
+      }
+
+      // HM Confirmed Exit checkbox change
+      const chkRequireHMExitEl = document.getElementById('chkRequireHMExit');
+      if (chkRequireHMExitEl) {
+        chkRequireHMExitEl.addEventListener('change', fetchBacktest);
+      }
+
+      // CE Rejection Exit checkbox & threshold change
+      const chkCERejectionEl = document.getElementById('chkCERejection');
+      if (chkCERejectionEl) {
+        chkCERejectionEl.addEventListener('change', fetchBacktest);
+      }
+      const inpCERejectDistEl = document.getElementById('inpCERejectDist');
+      if (inpCERejectDistEl) {
+        inpCERejectDistEl.addEventListener('change', fetchBacktest);
+      }
+
+      // RMI Bounce Entry checkbox change
+      const chkRMIBounceEntryEl = document.getElementById('chkRMIBounceEntry');
+      if (chkRMIBounceEntryEl) {
+        chkRMIBounceEntryEl.addEventListener('change', fetchBacktest);
+      }
+
+      // CE Bounce Entry checkbox change
+      const chkCEBounceEntryEl = document.getElementById('chkCEBounceEntry');
+      if (chkCEBounceEntryEl) {
+        chkCEBounceEntryEl.addEventListener('change', fetchBacktest);
+      }
+
+      // CE Floor SL checkbox change
+      const chkCEFloorSLEl = document.getElementById('chkCEFloorSL');
+      if (chkCEFloorSLEl) {
+        chkCEFloorSLEl.addEventListener('change', fetchBacktest);
+      }
+
+      // RMI Floor SL checkbox change
+      const chkRMIFloorExitEl = document.getElementById('chkRMIFloorExit');
+      if (chkRMIFloorExitEl) {
+        chkRMIFloorExitEl.addEventListener('change', fetchBacktest);
+      }
+
+      // RMI Rejection Exit checkbox change
+      const chkRMIRejectionExitEl = document.getElementById('chkRMIRejectionExit');
+      if (chkRMIRejectionExitEl) {
+        chkRMIRejectionExitEl.addEventListener('change', fetchBacktest);
+      }
+
+      // Confluence & CPR checkboxes change
+      const allFilterIds = [
+        'chkEnableConfluence', 'chkEnableCPRExits', 'chkEnableHMVolExit', 'chkFilterFalseRejections',
+        'chkStrictBull', 'chkStrictBear', 'chkHammerContinuation', 'chkCELineBounce', 'chkNifty9EMAAlignment',
+        'chkCounterBreakoutExit', 'chkCandleBRMIReclaim', 'chkRMISupportHold', 'chkCrossStrikeInflection',
+        'chkCPRResistanceFilter', 'chkSpotCPRConflictFilter', 'chkBounceExhaustionFilter', 'chkCPRReversalEntry',
+        'chkDualCeilingFilter', 'chkPivotRetracementQueue', 'chkRMIReclaimEntry', 'chkCandleBTrendBreakout',
+        'chkDeadCatBounceGuard', 'chkMacroRegimeInflection', 'chkDailyCircuitBreaker', 'chkCPRSqueezeGuard',
+        'selStrikeMode', 'selEntrySignalMode', 'chkRequireHM', 'chkExitHMBearish',
+        'chkNearCETrail', 'chkFilterSellZone', 'chkSellZoneBreakout', 'chkBreakoutSL', 'chkUnifiedReclaim', 'chkCESpringboard', 'chkSpot200EMAGuard',
+        'inpMaxZoneWidth', 'inpZoneRetracementPct', 'inpStagnationBars',
+        'inpLotSize', 'inpCommission', 'inpSlippage', 'inpCEThreshold', 'inpBreakoutExpiry'
+      ];
+
+      let debounceTimer = null;
+      function debouncedFetch() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          fetchBacktest();
+        }, 300);
+      }
+
+      allFilterIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', () => fetchBacktest());
+          if (el.tagName === 'INPUT' && (el.type === 'number' || el.type === 'text')) {
+            el.addEventListener('input', debouncedFetch);
+          }
+        }
+      });
+
+      // Modal Close Handlers
+      const modal = document.getElementById('reasoningModal');
+      const modalCloseBtn = document.getElementById('modalCloseBtn');
+      if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', closeModal);
+      }
+      if (modal) {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeModal();
+        });
+      }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+      });
+
+      // Enter key on inputs
+      ['inpLotSize', 'inpCommission', 'inpSlippage', 'inpStartTime', 'inpEndTime', 'inpTargetPts', 'inpCERejectDist', 'inpBreakoutExpiry', 'inpMaxZoneWidth', 'inpZoneRetracementPct', 'inpStagnationBars'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') fetchBacktest();
+          });
+        }
+      });
+
+      // Initial load
+      fetchBacktest();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Options Backtest — Vivek's Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#060d18; --surface:#0c1526; --surface2:#121e35; --border:#1c2e4a;
+      --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+      --purple:#a855f7; --cyan:#06b6d4;
+      --text:#e2e8f0; --muted:#64748b;
+      --font:'Inter',sans-serif; --mono:'JetBrains Mono',monospace;
+    }
+    body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+
+    /* NAV */
+    .nav { background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; height:52px; display:flex; align-items:center; gap:12px; }
+    .nav-brand { font-weight:800; font-size:15px; color:var(--text); text-decoration:none; }
+    .nav-badge { background:linear-gradient(135deg,#1d4ed8,#7c3aed); color:#fff; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+    .nav-links { margin-left:auto; display:flex; gap:8px; }
+    .nav-link { background:var(--surface2); border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:5px 12px; font-size:12px; text-decoration:none; transition:.15s; }
+    .nav-link:hover { color:var(--text); border-color:var(--blue); }
+
+    /* PHASE BADGE */
+    .phase-bar { background:rgba(59,130,246,.07); border-bottom:1px solid rgba(59,130,246,.15); padding:10px 24px; display:flex; align-items:center; gap:12px; font-size:12px; }
+    .phase-pill { background:var(--blue); color:#fff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:20px; letter-spacing:.08em; }
+    .phase-rule { color:var(--text); font-weight:600; }
+    .phase-sub  { color:var(--muted); }
+
+    /* LAYOUT */
+    .page { max-width:1360px; margin:0 auto; padding:18px; }
+    .layout { display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start; }
+
+    /* CARD */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:12px; }
+    .card-hd { padding:11px 16px; border-bottom:1px solid var(--border); font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; display:flex; align-items:center; gap:6px; }
+    .card-bd { padding:14px 16px; }
+
+    /* UPLOAD */
+    .upload-zone { border:2px dashed var(--border); border-radius:10px; padding:14px 14px; cursor:pointer; transition:.2s; position:relative; display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .upload-zone:hover { border-color:var(--blue); background:rgba(59,130,246,.04); }
+    .upload-zone.loaded { border-color:var(--green); border-style:solid; background:rgba(34,197,94,.03); }
+    .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+    .uz-icon { font-size:20px; flex-shrink:0; }
+    .uz-info { flex:1; min-width:0; }
+    .uz-label { font-size:12px; font-weight:600; }
+    .uz-sub { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+    .uz-tick { color:var(--green); flex-shrink:0; display:none; font-size:15px; }
+    .loaded .uz-tick { display:block; }
+
+    /* SETTINGS */
+    .row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(28,46,74,.5); }
+    .row:last-child { border-bottom:none; }
+    .rl { font-size:12px; }
+    .rl strong { display:block; font-size:12px; font-weight:600; color:var(--text); }
+    .rl span { color:var(--muted); font-size:11px; }
+    .num-input { background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:12px; border-radius:6px; padding:4px 8px; width:110px; text-align:right; }
+    .date-input { background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:12px; border-radius:6px; padding:4px 8px; width:135px; }
+
+    /* RUN BTN */
+    .btn-run { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#7c3aed); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:800; font-family:var(--font); cursor:pointer; transition:.2s; margin-top:4px; }
+    .btn-run:hover { opacity:.9; transform:translateY(-1px); box-shadow:0 8px 24px rgba(124,58,237,.3); }
+    .btn-run:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .btn-run.loading { position:relative; color:transparent; }
+    .btn-run.loading::after { content:''; position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+
+    .err { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); border-radius:8px; padding:10px 14px; color:var(--red); font-size:12px; margin-top:10px; display:none; }
+
+    /* STATS */
+    .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+    .sc { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 14px; }
+    .sc-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:5px; }
+    .sc-val { font-size:22px; font-weight:800; font-family:var(--mono); }
+    .sc-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+    .g { color:var(--green); } .r { color:var(--red); } .b { color:var(--blue); } .a { color:var(--amber); }
+
+    /* DAY CARDS */
+    .day-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:12px; }
+    .dc { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; text-align:center; }
+    .dc-name { font-size:11px; color:var(--muted); margin-bottom:4px; }
+    .dc-pnl { font-size:16px; font-weight:700; font-family:var(--mono); }
+    .dc-sub { font-size:10px; color:var(--muted); margin-top:2px; }
+
+    /* CHART */
+    .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px; }
+    .chart-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:12px; }
+
+    /* TABLE */
+    .tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .tbl-hd { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .tbl-scroll { overflow-x:auto; max-height:480px; overflow-y:auto; }
+    table { width:100%; border-collapse:collapse; font-size:11px; }
+    th { padding:9px 12px; text-align:left; color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); white-space:nowrap; }
+    td { padding:8px 12px; border-bottom:1px solid rgba(28,46,74,.4); font-family:var(--mono); white-space:nowrap; }
+    tr:hover td { background:rgba(255,255,255,.02); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; font-family:var(--font); }
+    .badge-ce  { background:rgba(34,197,94,.12);  color:var(--green); }
+    .badge-pe  { background:rgba(239,68,68,.12);  color:var(--red); }
+    .badge-win { background:rgba(34,197,94,.1);   color:var(--green); }
+    .badge-loss{ background:rgba(239,68,68,.1);   color:var(--red); }
+
+    /* PLACEHOLDER */
+    .ph { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 24px; color:var(--muted); text-align:center; gap:14px; }
+    .ph-icon { font-size:52px; opacity:.35; }
+    .ph-title { font-size:16px; font-weight:700; color:var(--text); }
+    .ph-sub { font-size:13px; max-width:360px; line-height:1.7; }
+
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+    #results { display:none; }
+    #placeholder { display:flex; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-brand">⚡ Vivek's Dashboard</a>
+  <span class="nav-badge">OPTIONS BACKTEST</span>
+  <div class="nav-links">
+    <a href="/" class="nav-link">← Live Dashboard</a>
+    <a href="/waterfall-backtest.html" class="nav-link" style="color:#60a5fa; border-color:#3b82f6;">🌊 Waterfall BT</a>
+    <a href="/backtest.html" class="nav-link">Futures BT</a>
+  </div>
+</nav>
+
+<!-- PHASE INDICATOR -->
+<div class="phase-bar">
+  <span class="phase-pill">WATERFALL</span>
+  <span class="phase-rule">🎯 Entry: 9 EMA Long Signal → BUY CE &nbsp;|&nbsp; Short Signal → BUY PE</span>
+  <span class="phase-sub">&nbsp;·&nbsp; Exit: +25 pts Target reached OR Opposite Signal formation &nbsp;·&nbsp; EOD 15:15 IST</span>
+</div>
+
+<div class="page">
+  <div class="layout">
+
+    <!-- LEFT -->
+    <div>
+      <div class="card">
+        <div class="card-hd">📂 Upload 3 Charts</div>
+        <div class="card-bd">
+
+          <div class="upload-zone" id="zone-futures">
+            <input type="file" id="file-futures" accept=".csv" />
+            <div class="uz-icon">📈</div>
+            <div class="uz-info">
+              <div class="uz-label">Nifty Futures</div>
+              <div class="uz-sub" id="fn-futures">Signal source — Long/Short Signal columns</div>
+            </div>
+            <div class="uz-tick">✓</div>
+          </div>
+
+          <div class="upload-zone" id="zone-ce">
+            <input type="file" id="file-ce" accept=".csv" />
+            <div class="uz-icon">🟢</div>
+            <div class="uz-info">
+              <div class="uz-label">23100 CE Chart</div>
+              <div class="uz-sub" id="fn-ce">NSE_NIFTY260922C23100 · 3-min</div>
+            </div>
+            <div class="uz-tick">✓</div>
+          </div>
+
+          <div class="upload-zone" id="zone-pe">
+            <input type="file" id="file-pe" accept=".csv" />
+            <div class="uz-icon">🔴</div>
+            <div class="uz-info">
+              <div class="uz-label">23600 PE Chart</div>
+              <div class="uz-sub" id="fn-pe">NSE_NIFTY260922P23600 · 3-min</div>
+            </div>
+            <div class="uz-tick">✓</div>
+          </div>
+
+          <div class="err" id="errBox"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">📅 Date Range & Target</div>
+        <div class="card-bd">
+          <div class="row">
+            <div class="rl"><strong>Target Exit (Points)</strong><span>Exit on 25 pts gain</span></div>
+            <input type="number" class="num-input" id="targetPts" value="25" step="1" />
+          </div>
+          <div class="row">
+            <div class="rl"><strong>From</strong></div>
+            <input type="date" class="date-input" id="startDate" value="2026-09-16" />
+          </div>
+          <div class="row">
+            <div class="rl"><strong>To</strong></div>
+            <input type="date" class="date-input" id="endDate" value="2026-09-22" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">💰 Capital & Lot</div>
+        <div class="card-bd">
+          <div class="row">
+            <div class="rl"><strong>Initial Capital (₹)</strong></div>
+            <input type="number" class="num-input" id="initialCapital" value="100000" />
+          </div>
+          <div class="row">
+            <div class="rl"><strong>Lot Size (qty)</strong><span>NIFTY = 750</span></div>
+            <input type="number" class="num-input" id="lotSize" value="750" />
+          </div>
+          <div class="row">
+            <div class="rl"><strong>Commission (₹/leg)</strong><span>Zerodha flat ₹20</span></div>
+            <input type="number" class="num-input" id="commission" value="20" />
+          </div>
+          <div class="row">
+            <div class="rl"><strong>Slippage (₹ premium)</strong></div>
+            <input type="number" class="num-input" id="slippage" value="0.5" step="0.1" />
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-run" id="btnRun" onclick="runBT()">▶ Run Backtest</button>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+
+      <div id="placeholder" class="ph">
+        <div class="ph-icon">🎯</div>
+        <div class="ph-title">EMA Signal + 25pt Target Exit</div>
+        <div class="ph-sub">
+          Upload your 3 charts and click Run.<br/>
+          <strong>Long Signal</strong> → buy 23100 CE &nbsp;·&nbsp; <strong>Short Signal</strong> → buy 23600 PE<br/>
+          <strong>Exit:</strong> Accumulate 25 points or exit on opposite signal / EOD.
+        </div>
+      </div>
+
+      <div id="results">
+
+        <!-- STAT GRID ROW 1 -->
+        <div class="stat-grid">
+          <div class="sc">
+            <div class="sc-label">Net P&L</div>
+            <div class="sc-val" id="s-pnl">—</div>
+            <div class="sc-sub" id="s-ret">—</div>
+          </div>
+          <div class="sc">
+            <div class="sc-label">Win Rate</div>
+            <div class="sc-val b" id="s-wr">—</div>
+            <div class="sc-sub" id="s-wl">—</div>
+          </div>
+          <div class="sc">
+            <div class="sc-label">Profit Factor</div>
+            <div class="sc-val" id="s-pf">—</div>
+            <div class="sc-sub" id="s-trades">—</div>
+          </div>
+          <div class="sc">
+            <div class="sc-label">Max Drawdown</div>
+            <div class="sc-val r" id="s-dd">—</div>
+            <div class="sc-sub" id="s-period">—</div>
+          </div>
+        </div>
+
+        <!-- STAT GRID ROW 2 -->
+        <div class="stat-grid">
+          <div class="sc">
+            <div class="sc-label">CE Trades</div>
+            <div class="sc-val g" id="s-ce">—</div>
+            <div class="sc-sub" id="s-cewr">— win rate</div>
+          </div>
+          <div class="sc">
+            <div class="sc-label">PE Trades</div>
+            <div class="sc-val r" id="s-pe">—</div>
+            <div class="sc-sub" id="s-pewr">— win rate</div>
+          </div>
+          <div class="sc">
+            <div class="sc-label">Avg Win</div>
+            <div class="sc-val g" id="s-aw">—</div>
+            <div class="sc-sub">per winning trade</div>
+          </div>
+          <div class="sc">
+            <div class="sc-label">Avg Loss</div>
+            <div class="sc-val r" id="s-al">—</div>
+            <div class="sc-sub">per losing trade</div>
+          </div>
+        </div>
+
+        <!-- DAY WISE -->
+        <div class="chart-card" style="padding:14px 16px;">
+          <div class="chart-title">📅 Day-wise P&L</div>
+          <div class="day-grid" id="dayGrid"></div>
+        </div>
+
+        <!-- EQUITY CURVE -->
+        <div class="chart-card">
+          <div class="chart-title">📈 Equity Curve</div>
+          <canvas id="eqChart" height="180"></canvas>
+        </div>
+
+        <!-- TRADE LOG -->
+        <div class="tbl-wrap">
+          <div class="tbl-hd">
+            <span style="font-size:12px;font-weight:700">📋 Trade Log</span>
+            <span style="font-size:11px;color:var(--muted)" id="tradeCount"></span>
+          </div>
+          <div class="tbl-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Entry</th>
+                  <th>Dir</th>
+                  <th>Fut Price</th>
+                  <th>Entry LTP</th>
+                  <th>Exit</th>
+                  <th>Exit LTP</th>
+                  <th>LTP Move</th>
+                  <th>Dur</th>
+                  <th>P&L ₹</th>
+                  <th>Result</th>
+                  <th>Exit Reason</th>
+                </tr>
+              </thead>
+              <tbody id="tradeBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /results -->
+    </div>
+  </div>
+</div>
+
+<script>
+const files = { futures: null, ce: null, pe: null };
+
+['futures','ce','pe'].forEach(key => {
+  const inp  = document.getElementById(`file-${key}`);
+  const zone = document.getElementById(`zone-${key}`);
+  const fn   = document.getElementById(`fn-${key}`);
+  function setFile(f) {
+    if (!f) return;
+    files[key] = f;
+    fn.textContent = `✅ ${f.name}  (${(f.size/1024).toFixed(0)} KB)`;
+    zone.classList.add('loaded');
+    hideErr();
+  }
+  inp.addEventListener('change', e => setFile(e.target.files[0]));
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); setFile(e.dataTransfer.files[0]); });
+});
+
+function showErr(m) { const b=document.getElementById('errBox'); b.textContent='❌ '+m; b.style.display='block'; }
+function hideErr()  { document.getElementById('errBox').style.display='none'; }
+
+async function runBT() {
+  if (!files.futures) return showErr('Upload the Nifty Futures CSV.');
+  if (!files.ce)      return showErr('Upload the 23100 CE CSV.');
+  if (!files.pe)      return showErr('Upload the 23600 PE CSV.');
+  hideErr();
+
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true; btn.classList.add('loading');
+
+  const form = new FormData();
+  form.append('futures',        files.futures);
+  form.append('ce',             files.ce);
+  form.append('pe',             files.pe);
+  form.append('startDate',      document.getElementById('startDate').value);
+  form.append('endDate',        document.getElementById('endDate').value);
+  form.append('targetPts',      document.getElementById('targetPts').value);
+  form.append('initialCapital', document.getElementById('initialCapital').value);
+  form.append('lotSize',        document.getElementById('lotSize').value);
+  form.append('commission',     document.getElementById('commission').value);
+  form.append('slippage',       document.getElementById('slippage').value);
+
+  try {
+    const res  = await fetch('/api/backtest/options', { method:'POST', body:form });
+    const data = await res.json();
+    if (!res.ok || data.error) return showErr(data.error || 'Backtest failed');
+    render(data);
+  } catch(e) { showErr('Server error: ' + e.message); }
+  finally { btn.disabled=false; btn.classList.remove('loading'); btn.textContent='▶ Run Backtest'; }
+}
+
+function render(data) {
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  const s = data.summary;
+
+  // Row 1
+  const pnlEl = document.getElementById('s-pnl');
+  pnlEl.textContent = (s.totalPnL>=0?'+':'') + '₹' + s.totalPnL.toLocaleString('en-IN');
+  pnlEl.className   = 'sc-val ' + (s.totalPnL >= 0 ? 'g' : 'r');
+  document.getElementById('s-ret').textContent    = (s.returnPct>=0?'+':'') + s.returnPct + '% return';
+  document.getElementById('s-wr').textContent     = s.winRate + '%';
+  document.getElementById('s-wl').textContent     = `${s.wins}W / ${s.losses}L`;
+  document.getElementById('s-trades').textContent = `${s.totalTrades} trades`;
+  const pfEl = document.getElementById('s-pf');
+  pfEl.textContent  = s.profitFactor ?? '—';
+  pfEl.className    = 'sc-val ' + (s.profitFactor && s.profitFactor >= 1 ? 'g' : 'r');
+  document.getElementById('s-dd').textContent     = '₹' + s.maxDrawdown.toLocaleString('en-IN');
+  document.getElementById('s-period').textContent = `${s.daysAnalysed} days · ${s.barsAnalysed} bars`;
+
+  // Row 2
+  document.getElementById('s-ce').textContent   = s.ceTrades;
+  document.getElementById('s-cewr').textContent = `${s.ceWinRate}% win rate`;
+  document.getElementById('s-pe').textContent   = s.peTrades;
+  document.getElementById('s-pewr').textContent = `${s.peWinRate}% win rate`;
+  document.getElementById('s-aw').textContent   = '₹' + s.avgWin.toLocaleString('en-IN');
+  document.getElementById('s-al').textContent   = '₹' + s.avgLoss.toLocaleString('en-IN');
+
+  // Day cards
+  const DAYS = {'2026-09-16':'Mon 16','2026-09-17':'Tue 17','2026-09-18':'Wed 18','2026-09-21':'Thu 21','2026-09-22':'Fri 22'};
+  document.getElementById('dayGrid').innerHTML = Object.entries(DAYS).map(([dt,lbl]) => {
+    const d = data.dayBreakdown?.[dt] || { trades:0, wins:0, pnl:0 };
+    const wr = d.trades > 0 ? Math.round(d.wins/d.trades*100) : 0;
+    return `<div class="dc">
+      <div class="dc-name">${lbl}</div>
+      <div class="dc-pnl ${d.pnl>=0?'g':'r'}">${d.pnl>=0?'+':''}₹${Math.round(d.pnl).toLocaleString('en-IN')}</div>
+      <div class="dc-sub">${d.trades} trades · ${wr}% WR</div>
+    </div>`;
+  }).join('');
+
+  // Equity curve
+  drawEquity(data.equityCurve, s.initialCapital);
+
+  // Trade log
+  document.getElementById('tradeCount').textContent = `${data.trades.length} trades`;
+  document.getElementById('tradeBody').innerHTML = data.trades.map(t => `
+    <tr>
+      <td style="color:var(--muted)">${t.id}</td>
+      <td>${t.entryDate}</td>
+      <td>${t.entryTime}</td>
+      <td><span class="badge badge-${t.dir.toLowerCase()}">${t.dir==='CE'?'🟢 CE':'🔴 PE'}</span></td>
+      <td style="color:var(--muted)">₹${t.entryFut}</td>
+      <td style="color:var(--cyan)">₹${t.entryLTP}</td>
+      <td style="color:var(--muted)">${t.exitTime}</td>
+      <td style="color:var(--cyan)">₹${t.exitLTP}</td>
+      <td style="color:${t.ltpMove>=0?'var(--green)':'var(--red)'}">${t.ltpMove>=0?'+':''}${t.ltpMove}</td>
+      <td style="color:var(--muted)">${t.durationMins}m</td>
+      <td style="color:${t.pnl>=0?'var(--green)':'var(--red)'};font-weight:700">${t.pnl>=0?'+':''}₹${t.pnl.toLocaleString('en-IN')}</td>
+      <td><span class="badge badge-${t.result.toLowerCase()}">${t.result}</span></td>
+      <td style="color:var(--muted);font-family:var(--font);max-width:180px;overflow:hidden;text-overflow:ellipsis">${t.exitReason}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:24px">No trades — check CSV date range</td></tr>';
+}
+
+function drawEquity(curve, initCap) {
+  const canvas = document.getElementById('eqChart');
+  const W = canvas.offsetWidth, H = 200;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!curve?.length) return;
+
+  const step = Math.max(1, Math.floor(curve.length / 800));
+  const pts  = curve.filter((_,i) => i % step === 0);
+  const vals = pts.map(p => p.equity);
+  const minV = Math.min(...vals, initCap);
+  const maxV = Math.max(...vals, initCap);
+  const rng  = maxV - minV || 1;
+  const P    = { t:16, b:24, l:82, r:16 };
+
+  ctx.clearRect(0, 0, W, H);
+  const xOf = i => P.l + (i/(pts.length-1||1)) * (W-P.l-P.r);
+  const yOf = v => P.t + (1-(v-minV)/rng) * (H-P.t-P.b);
+
+  // baseline
+  ctx.strokeStyle = 'rgba(100,116,139,.25)'; ctx.setLineDash([4,4]);
+  const bY = yOf(initCap);
+  ctx.beginPath(); ctx.moveTo(P.l, bY); ctx.lineTo(W-P.r, bY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const profit = vals[vals.length-1] >= initCap;
+  const grad = ctx.createLinearGradient(0, P.t, 0, H-P.b);
+  grad.addColorStop(0, profit ? 'rgba(34,197,94,.28)' : 'rgba(239,68,68,.28)');
+  grad.addColorStop(1, profit ? 'rgba(34,197,94,.02)' : 'rgba(239,68,68,.02)');
+
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(vals[0]));
+  for (let i=1; i<pts.length; i++) ctx.lineTo(xOf(i), yOf(vals[i]));
+  ctx.lineTo(xOf(pts.length-1), H-P.b); ctx.lineTo(xOf(0), H-P.b);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(vals[0]));
+  for (let i=1; i<pts.length; i++) ctx.lineTo(xOf(i), yOf(vals[i]));
+  ctx.strokeStyle = profit ? '#22c55e' : '#ef4444'; ctx.lineWidth = 2; ctx.stroke();
+
+  ctx.fillStyle = '#64748b'; ctx.font = '10px JetBrains Mono,monospace'; ctx.textAlign = 'right';
+  [minV, (minV+maxV)/2, maxV].forEach(v =>
+    ctx.fillText('₹'+Math.round(v).toLocaleString('en-IN'), P.l-4, yOf(v)+3)
+  );
+}
+</script>
+</body>
+</html>

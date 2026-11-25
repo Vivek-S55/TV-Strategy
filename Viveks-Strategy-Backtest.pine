@@ -1,0 +1,280 @@
+// ============================================================
+// Vivek's Strategy — BACKTEST VERSION
+// Based on: Vivek's Dashboard - EMA Momentum Tracking
+//
+// HOW TO USE:
+//   1. Open TradingView → Pine Script Editor (bottom panel)
+//   2. Paste this entire script
+//   3. Click "Add to chart"
+//   4. Map each input.source() to the same indicator outputs
+//      as your original "Vivek's Dashboard" indicator
+//   5. Click "Strategy Tester" tab → see full P&L backtest
+//
+// WHAT IT TRADES:
+//   BUY signal  → Simulates buying CE (Long position on NIFTY)
+//   SELL signal → Simulates buying PE (Short position on NIFTY)
+//   Exit signal → Squares off position
+// ============================================================
+
+//@version=6
+strategy(
+    "Vivek's Dashboard — Backtest",
+    overlay            = true,
+    initial_capital    = 100000,
+    currency           = currency.INR,
+    default_qty_type   = strategy.fixed,
+    default_qty_value  = 1,
+    commission_type    = strategy.commission.cash_per_order,
+    commission_value   = 20,
+    slippage           = 2,
+    calc_on_every_tick = false,
+    process_orders_on_close = true
+)
+
+// ============================================================
+// SECTION 1: INPUTS — map these to your indicator outputs
+// ============================================================
+src_pp           = input.source(close, "1.  CPR PP")
+src_r1           = input.source(close, "2.  CPR R1")
+src_s1           = input.source(close, "3.  CPR S1")
+src_ce_buy_line  = input.source(close, "4.  CE Buy Line")
+src_ce_sell_line = input.source(close, "5.  CE Sell Line")
+src_ce_buy       = input.source(close, "6.  CE Buy Signal (1)")
+src_ce_sel       = input.source(close, "7.  CE Sell Signal (1)")
+src_rmi_ctr      = input.source(close, "8.  RMI Center Line")
+src_rmi_buy      = input.source(close, "9.  RMI Buy Signal (1)")
+src_rmi_sel      = input.source(close, "10. RMI Sell Signal (1)")
+src_9ema         = input.source(close, "11. 9 EMA")
+src_20ema        = input.source(close, "12. 20 EMA")
+src_200ema       = input.source(close, "13. 200 EMA")
+src_ema_buy      = input.source(close, "14. EMA Buy Signal (1)")
+src_ema_sel      = input.source(close, "15. EMA Short Signal (1)")
+src_hm_fast      = input.source(close, "17. HM Black/Fast Line",  group = "Hilega Milega")
+src_hm_signal    = input.source(close, "18. HM Green/Signal Line", group = "Hilega Milega")
+src_hm_trend     = input.source(close, "19. HM Red/Trend Line",    group = "Hilega Milega")
+
+// ============================================================
+// STRATEGY SETTINGS
+// ============================================================
+grpStr = "Strategy Settings"
+useTripleAlign  = input.bool(true,  "Enter on Triple Alignment",        group = grpStr)
+useEMAHM        = input.bool(true,  "Enter on EMA + HM Confirmed",      group = grpStr)
+useZoneMomentum = input.bool(true,  "Enter on Zone Momentum Breakout",  group = grpStr)
+useStructural   = input.bool(true,  "Enter on Structural Full Reversal", group = grpStr)
+useZoneBounce   = input.bool(false, "Enter on Zone Bounce (Tier 2)",    group = grpStr)
+useEMACross     = input.bool(false, "Enter on EMA 9/20 Clear Cross",    group = grpStr)
+exitOnEMAFlip   = input.bool(true,  "Exit on EMA Flip",                 group = grpStr)
+exitOnCEFlip    = input.bool(true,  "Exit on CE Flip",                  group = grpStr)
+exitOnOpposite  = input.bool(true,  "Exit on Opposite Tier-1 Signal",   group = grpStr)
+exitDistancePts = input.int(50,     "Exit: EMA Flip min distance (pts)", group = grpStr, minval = 1)
+
+// ============================================================
+// PERSISTENT STATE
+// ============================================================
+var string ceState         = "Neutral"
+var string rmiState        = "Neutral"
+var string emaState        = "Neutral"
+var string cprDirection    = "None"
+var string ema200Direction = "None"
+var bool   cprBrokenDown   = false
+var bool   cprBrokenUp     = false
+var bool   ema200BrokenDown = false
+var bool   ema200BrokenUp   = false
+var float  buyZoneLow      = na
+var float  buyZoneHigh     = na
+var bool   buyZoneActive   = false
+var float  sellZoneLow     = na
+var float  sellZoneHigh    = na
+var bool   sellZoneActive  = false
+
+// ============================================================
+// DAILY RESET
+// ============================================================
+bool is_new_day = ta.change(time("D")) != 0
+if is_new_day
+    rmiState        := "Neutral"
+    emaState        := "Neutral"
+    cprDirection    := "None"
+    ema200Direction := "None"
+    cprBrokenDown   := false
+    cprBrokenUp     := false
+    ema200BrokenDown := false
+    ema200BrokenUp   := false
+    buyZoneLow      := na
+    buyZoneHigh     := na
+    buyZoneActive   := false
+    sellZoneLow     := na
+    sellZoneHigh    := na
+    sellZoneActive  := false
+
+// ============================================================
+// SIGNAL STATE UPDATES
+// ============================================================
+if src_ce_buy == 1
+    ceState := "BUY"
+else if src_ce_sel == 1
+    ceState := "SELL"
+
+if src_rmi_buy == 1
+    rmiState := "BUY"
+else if src_rmi_sel == 1
+    rmiState := "SELL"
+
+if src_ema_buy == 1
+    emaState := "BUY"
+else if src_ema_sel == 1
+    emaState := "SELL"
+
+// CPR Direction
+if close > src_pp
+    cprDirection  := "BULL"
+    cprBrokenDown := false
+else if close < src_pp
+    cprDirection := "BEAR"
+    cprBrokenUp  := false
+
+// 200 EMA Direction
+if close > src_200ema
+    ema200Direction  := "BULL"
+    ema200BrokenDown := false
+else if close < src_200ema
+    ema200Direction := "BEAR"
+    ema200BrokenUp  := false
+
+// ============================================================
+// COMPUTED SIGNAL CONDITIONS
+// ============================================================
+bool ema9Bull = close > src_9ema
+bool ema9Bear = close < src_9ema
+
+bool bullishAlignment = cprDirection == "BULL" and ema200Direction == "BULL" and ema9Bull
+bool bearishAlignment = cprDirection == "BEAR" and ema200Direction == "BEAR" and ema9Bear
+
+// ============================================================
+// HILEGA MILEGA (PVR: Price, Volume, RSI)
+// ============================================================
+// R = 14 RSI, P = 3 EMA (Price strength), V = 21 WMA (Volume strength)
+hm_rsi       = ta.rsi(close, 14)
+hm_price_ema = ta.ema(hm_rsi, 3)
+hm_vol_wma   = ta.wma(hm_rsi, 21)
+
+// HM Bullish: 21 WMA and 3 EMA below RSI (RSI > 3 EMA & RSI > 21 WMA)
+// HM Bearish: 21 WMA and 3 EMA above RSI (RSI < 3 EMA & RSI < 21 WMA)
+bool hmBull = (hm_rsi > hm_price_ema and hm_rsi > hm_vol_wma) or (src_hm_fast > src_hm_signal and src_hm_fast > 50)
+bool hmBear = (hm_rsi < hm_price_ema and hm_rsi < hm_vol_wma) or (src_hm_fast < src_hm_signal and src_hm_fast < 50)
+
+bool emaBuyConfirmedHM  = emaState == "BUY"  and hmBull
+bool emaSellConfirmedHM = emaState == "SELL" and hmBear
+
+bool crossBuy  = src_9ema > src_20ema and not (src_9ema[1] > src_20ema[1]) and emaState == "BUY"
+bool crossSell = src_9ema < src_20ema and not (src_9ema[1] < src_20ema[1]) and emaState == "SELL"
+
+bool ceFlippedToBuy  = ceState == "BUY"  and ceState[1] == "SELL"
+bool ceFlippedToSell = ceState == "SELL" and ceState[1] == "BUY"
+
+bool fullBullReversal = cprDirection == "BULL" and ema200Direction == "BULL" and not (cprDirection[1] == "BULL" and ema200Direction[1] == "BULL")
+bool fullBearReversal = cprDirection == "BEAR" and ema200Direction == "BEAR" and not (cprDirection[1] == "BEAR" and ema200Direction[1] == "BEAR")
+
+// Zone momentum
+if emaState == "BUY" and not buyZoneActive
+    buyZoneLow    := src_9ema
+    buyZoneHigh   := src_20ema
+    buyZoneActive := true
+if emaState == "SELL"
+    buyZoneActive := false
+
+if emaState == "SELL" and not sellZoneActive
+    sellZoneLow    := src_20ema
+    sellZoneHigh   := src_9ema
+    sellZoneActive := true
+if emaState == "BUY"
+    sellZoneActive := false
+
+bool buyMomentum  = buyZoneActive  and close > buyZoneHigh and close > close[1]
+bool sellMomentum = sellZoneActive and close < sellZoneLow and close < close[1]
+bool buyZoneBounce  = buyZoneActive  and close >= buyZoneLow  and close <= buyZoneHigh
+bool sellZoneBounce = sellZoneActive and close >= sellZoneLow and close <= sellZoneHigh
+
+// ============================================================
+// EXIT CONDITIONS
+// ============================================================
+bool inLong  = strategy.position_size > 0
+bool inShort = strategy.position_size < 0
+float entryPrice = strategy.position_avg_price
+
+bool buyExit_EMAFlip  = inLong  and emaState == "SELL" and (na(entryPrice) ? false : close > entryPrice + exitDistancePts)
+bool sellExit_EMAFlip = inShort and emaState == "BUY"  and (na(entryPrice) ? false : close < entryPrice - exitDistancePts)
+bool buyExit_CEFlip   = inLong  and ceFlippedToSell
+bool sellExit_CEFlip  = inShort and ceFlippedToBuy
+bool buyExit_Opp      = inLong  and (bearishAlignment and not bearishAlignment[1])
+bool sellExit_Opp     = inShort and (bullishAlignment and not bullishAlignment[1])
+
+bool anyBuyExit  = (exitOnEMAFlip and buyExit_EMAFlip)  or (exitOnCEFlip and buyExit_CEFlip)  or (exitOnOpposite and buyExit_Opp)
+bool anySellExit = (exitOnEMAFlip and sellExit_EMAFlip) or (exitOnCEFlip and sellExit_CEFlip) or (exitOnOpposite and sellExit_Opp)
+
+// ============================================================
+// ENTRY CONDITIONS
+// ============================================================
+bool enterLong = false
+if useTripleAlign  and bullishAlignment    and not bullishAlignment[1]    and not inLong  then enterLong := true
+if useEMAHM        and emaBuyConfirmedHM   and not emaBuyConfirmedHM[1]   and not inLong  then enterLong := true
+if useZoneMomentum and buyMomentum         and not buyMomentum[1]         and not inLong  then enterLong := true
+if useStructural   and fullBullReversal    and not inLong                                  then enterLong := true
+if useZoneBounce   and buyZoneBounce       and not buyZoneBounce[1]       and not inLong  then enterLong := true
+if useEMACross     and crossBuy            and not inLong                                  then enterLong := true
+
+bool enterShort = false
+if useTripleAlign  and bearishAlignment    and not bearishAlignment[1]    and not inShort then enterShort := true
+if useEMAHM        and emaSellConfirmedHM  and not emaSellConfirmedHM[1]  and not inShort then enterShort := true
+if useZoneMomentum and sellMomentum        and not sellMomentum[1]        and not inShort then enterShort := true
+if useStructural   and fullBearReversal    and not inShort                                 then enterShort := true
+if useZoneBounce   and sellZoneBounce      and not sellZoneBounce[1]      and not inShort then enterShort := true
+if useEMACross     and crossSell           and not inShort                                 then enterShort := true
+
+// ============================================================
+// EXECUTE ORDERS
+// ============================================================
+if enterLong  and inShort  then strategy.close("SELL PE", comment = "Reversed to BUY")
+if enterShort and inLong   then strategy.close("BUY CE",  comment = "Reversed to SELL")
+
+if enterLong  and not inLong  then strategy.entry("BUY CE",  strategy.long,  comment = "BUY CE")
+if enterShort and not inShort then strategy.entry("SELL PE", strategy.short, comment = "SELL PE")
+
+if anyBuyExit  and inLong  then strategy.close("BUY CE",  comment = "EXIT BUY")
+if anySellExit and inShort then strategy.close("SELL PE", comment = "EXIT SELL")
+
+// EOD exit 15:15 IST
+bool isEOD = (hour == 15 and minute >= 15) or hour > 15
+if isEOD and strategy.position_size != 0
+    strategy.close_all(comment = "EOD Exit")
+
+// ============================================================
+// CHART VISUALS
+// ============================================================
+plotshape(enterLong  and not enterLong[1],  style = shape.triangleup,   location = location.belowbar, color = color.new(color.green, 0), size = size.normal, title = "BUY CE",  text = "CE")
+plotshape(enterShort and not enterShort[1], style = shape.triangledown, location = location.abovebar, color = color.new(color.red, 0),   size = size.normal, title = "SELL PE", text = "PE")
+plotshape(anyBuyExit,  style = shape.xcross, location = location.abovebar, color = color.new(color.orange, 0), size = size.small, title = "BUY Exit")
+plotshape(anySellExit, style = shape.xcross, location = location.belowbar, color = color.new(color.orange, 0), size = size.small, title = "SELL Exit")
+bgcolor(bullishAlignment ? color.new(color.green, 92) : bearishAlignment ? color.new(color.red, 92) : na)
+
+plot(src_pp,     title = "CPR PP",  color = color.new(color.yellow, 40), linewidth = 1, style = plot.style_circles)
+plot(src_9ema,   title = "9 EMA",   color = color.new(color.blue, 30),   linewidth = 1)
+plot(src_20ema,  title = "20 EMA",  color = color.new(color.orange, 30), linewidth = 1)
+plot(src_200ema, title = "200 EMA", color = color.new(color.purple, 30), linewidth = 2)
+
+// Info table
+var table infoTable = table.new(position.top_right, 2, 6, bgcolor = color.new(color.black, 60), border_width = 1)
+if barstate.islast
+    table.cell(infoTable, 0, 0, "CPR",       text_color = color.gray,  text_size = size.small)
+    table.cell(infoTable, 1, 0, cprDirection, text_color = cprDirection == "BULL" ? color.green : color.red, text_size = size.small)
+    table.cell(infoTable, 0, 1, "200 EMA",   text_color = color.gray,  text_size = size.small)
+    table.cell(infoTable, 1, 1, ema200Direction, text_color = ema200Direction == "BULL" ? color.green : color.red, text_size = size.small)
+    table.cell(infoTable, 0, 2, "9 EMA",     text_color = color.gray,  text_size = size.small)
+    table.cell(infoTable, 1, 2, ema9Bull ? "BULL" : "BEAR", text_color = ema9Bull ? color.green : color.red, text_size = size.small)
+    table.cell(infoTable, 0, 3, "EMA State", text_color = color.gray,  text_size = size.small)
+    table.cell(infoTable, 1, 3, emaState, text_color = emaState == "BUY" ? color.green : color.red, text_size = size.small)
+    table.cell(infoTable, 0, 4, "CE State",  text_color = color.gray,  text_size = size.small)
+    table.cell(infoTable, 1, 4, ceState, text_color = ceState == "BUY" ? color.green : color.red, text_size = size.small)
+    table.cell(infoTable, 0, 5, "ALIGNMENT", text_color = color.gray,  text_size = size.small)
+    table.cell(infoTable, 1, 5, bullishAlignment ? "BULL" : bearishAlignment ? "BEAR" : "None",
+               text_color = bullishAlignment ? color.green : bearishAlignment ? color.red : color.gray, text_size = size.small)

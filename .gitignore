@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Environment variables & secrets (NEVER commit live secrets)
+.env
+config/telegram.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Backup folders and files
+Backup-charts/
+*.backup.*
+*.backup*.js
+*.backup*.html
+*.bak
+
+# Temporary / raw live webhooks
+data/live_webhooks_*
+
+# Scratch scripts
+scratch/

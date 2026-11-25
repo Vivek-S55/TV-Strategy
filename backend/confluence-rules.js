@@ -35,6 +35,7 @@ function normalizeOptions(options = {}) {
     enableSpot200EMAGuard: options.enableSpot200EMAGuard !== undefined ? (options.enableSpot200EMAGuard === true || options.enableSpot200EMAGuard === 'true') : true,
     maxCESpringboardRisk: options.maxCESpringboardRisk !== undefined ? parseFloat(options.maxCESpringboardRisk) : 35.0,
     enableNifty9EMAAlignment: options.enableNifty9EMAAlignment !== undefined ? (options.enableNifty9EMAAlignment === true || options.enableNifty9EMAAlignment === 'true') : true,
+    enableOption9EMAFilter: options.enableOption9EMAFilter !== undefined ? (options.enableOption9EMAFilter === true || options.enableOption9EMAFilter === 'true') : true,
     enableCounterBreakoutExit: options.enableCounterBreakoutExit !== undefined ? (options.enableCounterBreakoutExit === true || options.enableCounterBreakoutExit === 'true') : true,
     enableCELineSupportCushion: options.enableCELineSupportCushion !== undefined ? (options.enableCELineSupportCushion === true || options.enableCELineSupportCushion === 'true') : true,
     ceLineCushionThreshold: options.ceLineCushionThreshold !== undefined ? parseFloat(options.ceLineCushionThreshold) : 5.0,
@@ -1966,6 +1967,24 @@ function evaluateTradeEntries(ctx) {
       const file = fileForSide(side);
 
       if (curBar && (curBar.longSignal === 1 || curBar.emaBuyHM === 1)) {
+        // Option 9 EMA Filter: Option price must hold above its own 9 EMA to confirm bullish momentum
+        if (opts.enableOption9EMAFilter && curBar.ema9 && curBar.close <= curBar.ema9) {
+          state.skippedTrades.push({
+            id: `S${state.skippedTrades.length + 1}`,
+            day: dayKey,
+            dayLabel: dayLabel,
+            side: side,
+            strike: cleanStrikeName(file),
+            file: file,
+            entryTime: `${dayKey}T${t}:00+05:30`,
+            entryPrice: curBar.close,
+            status: "SKIPPED",
+            skipReason: `Option 9 EMA Filter: ${side} Buy signal at ${t}, but option close (₹${curBar.close.toFixed(2)}) is <= its 9 EMA (₹${curBar.ema9.toFixed(2)})`,
+            reasoning: `🛡️ Option 9 EMA Protection Skip: ${side} signal on ${cleanStrikeName(file)} at ₹${curBar.close.toFixed(2)} skipped because price is trading below its 9 EMA (₹${curBar.ema9.toFixed(2)}).`
+          });
+          continue;
+        }
+
         let confirmed = false;
         let confirmReason = "";
 

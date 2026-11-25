@@ -126,3 +126,4 @@ if (fs.existsSync(nifty11Path)) {
   fs.writeFileSync(path.join(DATA_DIR, 'NSE_NIFTY, 3 (11).csv'), content);
   console.log(`✅ Updated NIFTY (11) with ${spotRows.length} bars for 2026-11-25`);
 }
+

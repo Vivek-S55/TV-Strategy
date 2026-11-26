@@ -388,6 +388,13 @@ const SINGLE_PRIMARY_ASSIGNMENTS = {
     refStrike: 25700,
     CE: ['NSE_NIFTY261201C25500, 3.csv'],
     PE: ['NSE_NIFTY261201P25800, 3.csv']
+  },
+  '2026-11-26': {
+    dayLabel: 'Thursday, Nov 26',
+    niftyOpen: 25877.05,
+    refStrike: 25900,
+    CE: ['NSE_NIFTY261201C25700, 3.csv'],
+    PE: ['NSE_NIFTY261201P26000, 3.csv']
   }
 };
 
@@ -650,6 +657,13 @@ const MULTI_STRIKE_ASSIGNMENTS = {
     refStrike: 25700,
     CE: ['NSE_NIFTY261201C25500, 3.csv'],
     PE: ['NSE_NIFTY261201P25800, 3.csv']
+  },
+  '2026-11-26': {
+    dayLabel: 'Thursday, Nov 26',
+    niftyOpen: 25877.05,
+    refStrike: 25900,
+    CE: ['NSE_NIFTY261201C25700, 3.csv'],
+    PE: ['NSE_NIFTY261201P26000, 3.csv']
   }
 };
 
@@ -675,6 +689,7 @@ function resolveNiftyPath(chartsDir, dayKey) {
     path.join(chartsDir, '..', 'Backup-charts')
   ];
   const candidates = [
+    'NSE_NIFTY, 3 (12).csv',
     'NSE_NIFTY, 3 (11).csv',
     'NSE_NIFTY, 3 (10).csv',
     'NSE_NIFTY, 3 (9).csv',
@@ -873,7 +888,7 @@ function runWaterfallBacktest(options = {}) {
   const enableSpot200EMAGuard = options.enableSpot200EMAGuard !== undefined ? (options.enableSpot200EMAGuard === true || options.enableSpot200EMAGuard === 'true') : true;
   const fixedTarget = (options.fixedTarget !== undefined && options.fixedTarget !== '' && !isNaN(parseFloat(options.fixedTarget))) ? parseFloat(options.fixedTarget) : null;
 
-  const DEFAULT_DATE_FILTER = '2026-10-26,2026-10-27,2026-10-28,2026-10-29,2026-10-30,2026-11-02,2026-11-03,2026-11-04,2026-11-05,2026-11-06,2026-11-09,2026-11-11,2026-11-12,2026-11-13,2026-11-16,2026-11-17,2026-11-18,2026-11-19,2026-11-20,2026-11-23,2026-11-25';
+  const DEFAULT_DATE_FILTER = '2026-10-26,2026-10-27,2026-10-28,2026-10-29,2026-10-30,2026-11-02,2026-11-03,2026-11-04,2026-11-05,2026-11-06,2026-11-09,2026-11-11,2026-11-12,2026-11-13,2026-11-16,2026-11-17,2026-11-18,2026-11-19,2026-11-20,2026-11-23,2026-11-25,2026-11-26';
   const dateFilter = options.dateFilter !== undefined ? options.dateFilter : DEFAULT_DATE_FILTER;
   let assignments = options.assignments;
   if (!assignments) {

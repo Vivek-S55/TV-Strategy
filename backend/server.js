@@ -730,7 +730,7 @@ app.get('/api/waterfall/run', (req, res) => {
     const enableCESpringboard = req.query.enableCESpringboard !== undefined ? (req.query.enableCESpringboard === 'true' || req.query.enableCESpringboard === true) : true;
     const enableSpot200EMAGuard = req.query.enableSpot200EMAGuard !== undefined ? (req.query.enableSpot200EMAGuard === 'true' || req.query.enableSpot200EMAGuard === true) : true;
     const fixedTarget = (req.query.fixedTarget !== undefined && req.query.fixedTarget !== '' && !isNaN(parseFloat(req.query.fixedTarget))) ? parseFloat(req.query.fixedTarget) : null;
-    const dateFilter = req.query.dateFilter || '2026-10-26,2026-10-27,2026-10-28,2026-10-29,2026-10-30,2026-11-02,2026-11-03,2026-11-04,2026-11-05,2026-11-06,2026-11-09,2026-11-11,2026-11-12,2026-11-13,2026-11-16,2026-11-17,2026-11-18,2026-11-19,2026-11-20,2026-11-23,2026-11-25,2026-11-26';
+    const dateFilter = req.query.dateFilter || '2026-10-26,2026-10-27,2026-10-28,2026-10-29,2026-10-30,2026-11-02,2026-11-03,2026-11-04,2026-11-05,2026-11-06,2026-11-09,2026-11-11,2026-11-12,2026-11-13,2026-11-16,2026-11-17,2026-11-18,2026-11-19,2026-11-20,2026-11-23,2026-11-25,2026-11-26,2026-11-27';
 
     const result = runWaterfallBacktest({
       lotSize, commission, slippage, entryStartTime, entryEndTime, strikeMode, targetPts,

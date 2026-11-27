@@ -177,3 +177,4 @@ console.log(`   Trades: ${fullState.executedTrades.length} (${fullState.summary.
 console.log(`   Net P&L: ₹${fullState.summary.totalNetPnL.toFixed(2)}`);
 console.log(`   Skips: ${fullState.skippedTrades.length}`);
 console.log(`   File size: ${Math.round(fs.statSync(sessionPath).size / 1024)} KB\n`);
+
